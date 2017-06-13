@@ -1,5 +1,6 @@
-from Bot.game import Game
 from Bot.bot import Bot
+
+from Bot.game import Game
 
 
 def main():
@@ -9,5 +10,5 @@ def main():
 
 
 if __name__ == '__main__':
-    print('hello')
+    # print('hello')
     main()
