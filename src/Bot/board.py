@@ -108,3 +108,16 @@ class Board(object):
                 self.output_cell(cell)
         sys.stderr.write('\n')
         sys.stderr.flush()
+
+    def total_area(self, coord):
+        area = set()
+        queue = set()
+        queue.add(coord)
+        while len(queue) > 0:
+            current = queue.pop()
+            area.add(current)
+            current_adjacent = self.get_adjacent(*current)
+            for adjacent in current_adjacent:
+                if adjacent not in area and adjacent not in queue:
+                    queue.add(adjacent)
+        return len(area)
