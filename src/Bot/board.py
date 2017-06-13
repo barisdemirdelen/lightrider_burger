@@ -79,8 +79,8 @@ class Board(object):
                 result.append((t_row, t_col))
         return result
 
-    def legal_moves(self, my_id, players):
-        my_player = players[my_id]
+    def legal_moves(self, my_id):
+        my_player = self.players[my_id]
         result = []
         for ((o_row, o_col), order) in DIRS:
             t_row = my_player.row + o_row

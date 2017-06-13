@@ -9,7 +9,7 @@ class Bot(object):
         self.game = game
 
     def do_turn(self):
-        legal = self.game.field.legal_moves(self.game.my_botid, self.game.players)
+        legal = self.game.field.legal_moves(self.game.my_botid)
         if len(legal) == 0:
             self.game.issue_order_pass()
         else:
