@@ -9,18 +9,22 @@ from Bot.board import BLOCKED
 
 total_nodes = 0
 start_time = 0
+cached = 0
 
 
 class Bot(object):
     def __init__(self):
         self.game = None
         self.separated = False
+        self.cache = {}
 
     def setup(self, game):
         self.game = game
 
     def do_turn(self):
         global start_time
+        global cached
+        cached = 0
         score = None
         start_time = time.time()
         legal = self.game.field.legal_moves(self.game.my_botid)
@@ -68,7 +72,7 @@ class Bot(object):
     def iterative_deepening_alpha_beta(self, only_me):
         i = 2
         best_score = None
-        best_path = None
+        best_path = []
         best_depth = i
         while True:
             current_time = time.time()
@@ -76,7 +80,7 @@ class Bot(object):
             if current_time - start_time > available_time:
                 break
             score, path, _, _ = self.alpha_beta(self.game.field, i, self.game.my_botid,
-                                                -float("inf"), float("inf"), [], only_me=only_me)
+                                                -float("inf"), float("inf"), [], only_me=only_me, search_path=best_path)
             if score is not None:
                 best_score = score
                 best_path = path
@@ -86,10 +90,16 @@ class Bot(object):
             i += 2
         return best_score, best_path, best_depth
 
-    def alpha_beta(self, field, depth, player_id, alpha, beta, move_history, only_me):
+    def alpha_beta(self, field, depth, player_id, alpha, beta, move_history, only_me, search_path):
         global total_nodes
+        global cached
         total_nodes += 1
         pruned = False
+        # field_hash = hash(str(field))
+        # if field_hash in self.cache:
+        #     cached+=1
+        #     return self.cache[field_hash]
+
         moves = field.legal_moves(player_id)
         elapsed_time = time.time() - start_time
         if elapsed_time > self.game.get_available_time_per_turn():
@@ -97,24 +107,33 @@ class Bot(object):
         if depth == 0 or len(moves) == 0:
             my_player = field.players[0]
             enemy_player = field.players[1]
-            my_score = field.total_area((my_player.row, my_player.col))
-            enemy_score = field.total_area((enemy_player.row, enemy_player.col))
+
             distance = 0
             if only_me:
                 if self.game.my_botid == 0:
+                    my_score = field.total_area((my_player.row, my_player.col))
                     enemy_score = 0
                 else:
                     my_score = 0
+                    enemy_score = field.total_area((enemy_player.row, enemy_player.col))
             else:
-                # distance = ((my_player.row - enemy_player.row) ** 2 + (
-                #     my_player.col - enemy_player.col) ** 2) ** 0.5
+                blocked_field = field.block_middle()
+                my_score = blocked_field.total_area((my_player.row, my_player.col))
+                enemy_score = blocked_field.total_area((enemy_player.row, enemy_player.col))
                 distance = field.get_player_true_distance()
             score = my_score - enemy_score
+            # self.cache[field_hash] = (
+            #     score, move_history + ['pass'] if len(moves) == 0 else move_history, distance, False)
+            # return self.cache[field_hash]
             return score, move_history + ['pass'] if len(moves) == 0 else move_history, distance, False
+
+        priority_move = None
+        # if len(search_path) > 0:
+        #     priority_move = search_path.pop(0)
 
         child_fields, directions = self.get_child_fields(field, player_id)
         child_fields, directions = self.sort_moves(child_fields, directions, player_id if only_me else player_id ^ 1,
-                                                   calculate_distance=not only_me)
+                                                   calculate_distance=not only_me, priority=priority_move)
 
         if player_id == 0:
             best_value = -float("inf")
@@ -124,7 +143,7 @@ class Bot(object):
                 v, node_history, distance, child_pruned = self.alpha_beta(child_field, depth - 1,
                                                                           player_id if only_me else player_id ^ 1,
                                                                           alpha, beta,
-                                                                          move_history, only_me)
+                                                                          move_history, only_me, search_path)
                 if v is None:
                     return None, None, None, None
                 if not child_pruned:
@@ -145,7 +164,7 @@ class Bot(object):
                 v, node_history, distance, child_pruned = self.alpha_beta(child_field, depth - 1,
                                                                           player_id if only_me else player_id ^ 1,
                                                                           alpha, beta,
-                                                                          move_history, only_me)
+                                                                          move_history, only_me, search_path)
                 if v is None:
                     return None, None, None, None
                 if not child_pruned:
@@ -158,9 +177,11 @@ class Bot(object):
                 if beta <= alpha:
                     pruned = True
                     break
+        # self.cache[field_hash] = (best_value, best_history, best_distance, pruned)
+        # return self.cache[field_hash]
         return best_value, best_history, best_distance, pruned
 
-    def sort_moves(self, fields, directions, next_player_id, calculate_distance):
+    def sort_moves(self, fields, directions, next_player_id, calculate_distance, priority):
         children_counts = []
         distances = []
         for field in fields:
@@ -174,7 +195,11 @@ class Bot(object):
                 distances.append(0)
 
         # reverse = False if next_player_id > 0 else True
-        child_list = sorted(zip(children_counts, fields, directions, distances), key=lambda x: (x[0], x[3]))
+        if priority is None:
+            child_list = sorted(zip(children_counts, fields, directions, distances), key=lambda x: (x[0], x[3]))
+        else:
+            child_list = sorted(zip(children_counts, fields, directions, distances),
+                                key=lambda x: (0 if x[2] == priority else 1, x[0], x[3]))
         _, sorted_fields, sorted_directions, sorted_distances = zip(*child_list)
 
         return sorted_fields, sorted_directions

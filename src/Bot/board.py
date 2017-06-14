@@ -241,3 +241,26 @@ class Board(object):
             current = came_from[current]
             total_path.append(current)
         return list(reversed(total_path[:-1]))
+
+    def block_middle(self):
+        field = self.get_copy()
+        first = True
+        path = None
+        while first or path is not None:
+            first = False
+            path = field.a_star_player_to_enemy(0)
+            if path is None:
+                break
+            path = path[:-1]
+            if len(path) == 0:
+                # TODO buraya bişey yap
+                break
+            if len(path) % 2 == 0:
+                c1 = path[len(path) // 2 - 1]
+                c2 = path[len(path) // 2]
+                field.cell[c1[0]][c1[1]] = BLOCKED
+                field.cell[c2[0]][c2[1]] = BLOCKED
+            else:
+                c = path[(len(path) - 1) // 2]
+                field.cell[c[0]][c[1]] = BLOCKED
+        return field
