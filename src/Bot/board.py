@@ -161,6 +161,10 @@ class Board(object):
     def get_player_manhattan_distance(self):
         return self.get_manhattan_distance(self.players[0].coord, self.players[1].coord)
 
+    def get_player_true_distance(self):
+        path = self.a_star_player_to_enemy(0)
+        return float("inf") if path is None else len(path)
+
     def get_copy(self):
         field = Board()
         field.width = self.width

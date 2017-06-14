@@ -110,7 +110,8 @@ class Bot(object):
             return score, move_history + ['pass'] if len(moves) == 0 else move_history, distance, False
 
         child_fields, directions = self.get_child_fields(field, player_id)
-        child_fields, directions = self.sort_moves(child_fields, directions, player_id if only_me else player_id ^ 1)
+        child_fields, directions = self.sort_moves(child_fields, directions, player_id if only_me else player_id ^ 1,
+                                                   calculate_distance=not only_me)
 
         if player_id == 0:
             best_value = -float("inf")
@@ -156,13 +157,18 @@ class Bot(object):
                     break
         return best_value, best_history, best_distance, pruned
 
-    def sort_moves(self, fields, directions, next_player_id):
+    def sort_moves(self, fields, directions, next_player_id, calculate_distance):
         children_counts = []
         distances = []
         for field in fields:
             child_fields, _ = self.get_child_fields(field, next_player_id)
             children_counts.append(len(child_fields))
-            distances.append(field.get_player_euclidian_distance_square())
+            if calculate_distance:
+                true_distance = field.get_player_true_distance()
+                # distances.append(field.get_player_euclidian_distance_square())
+                distances.append(true_distance)
+            else:
+                distances.append(0)
 
         # reverse = False if next_player_id > 0 else True
         child_list = sorted(zip(children_counts, fields, directions, distances), key=lambda x: (x[0], x[3]))
@@ -192,4 +198,3 @@ class Bot(object):
             len(node_history) > len(best_history) or (
                 len(node_history) == len(best_history) and distance < best_distance))
         # return v == best_value and distance < best_distance
-
