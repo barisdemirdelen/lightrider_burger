@@ -12,8 +12,8 @@ from . import player
 
 class Game(object):
     def __init__(self):
-        self.initial_timebank = 0
-        self.time_per_move = 10
+        self.initial_timebank = 10000
+        self.time_per_move = 200
         self.player_names = []
         self.my_bot = 'not set'
         self.my_botid = -1
@@ -29,6 +29,12 @@ class Game(object):
 
     def other_player(self):
         return self.field.players[self.other_botid]
+
+    def get_available_time_per_turn(self):
+        rounds_left = 0.5 * self.field.height * self.field.width - self.field.round
+        available_time = self.time_per_move + self.last_timebank / rounds_left
+        return available_time / 1000
+        # return 100000000
 
     def update(self, data):
         """parse input"""

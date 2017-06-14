@@ -3,9 +3,12 @@ import random
 
 import sys
 
+import time
+
 from Bot.board import BLOCKED
 
 total_nodes = 0
+start_time = 0
 
 
 class Bot(object):
@@ -17,6 +20,9 @@ class Bot(object):
         self.game = game
 
     def do_turn(self):
+        global start_time
+        score = None
+        start_time = time.time()
         legal = self.game.field.legal_moves(self.game.my_botid)
         if len(legal) == 0:
             self.game.issue_order_pass()
@@ -32,15 +38,18 @@ class Bot(object):
             #         best_move = move
             global total_nodes
             # total_nodes = 0
-            if self.game.field.get_player_manhattan_distance() > 5 or self.last_score > 0:
-                score, best_path, _ = self.alpha_beta(self.game.field, 4, self.game.my_botid,
-                                                      -float("inf"), float("inf"), [], only_me=True)
+            if self.game.field.get_player_manhattan_distance() > 5:
+                score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=True)
             else:
-                score, best_path, _ = self.alpha_beta(self.game.field, 4, self.game.my_botid,
-                                                      -float("inf"), float("inf"), [], only_me=False)
+                score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=False)
+                depth = depth / 2
             self.last_score = score
+            elapsed = time.time() - start_time
 
-            sys.stderr.write(str(total_nodes) + '\n')
+            sys.stderr.write(
+                "Round: %d, Score: %.4f, Depth: %d, Nodes: %.4f, Time: %d,\n" % (
+                    self.game.field.round, score, depth, total_nodes / (self.game.field.round + 1),
+                    self.game.last_timebank - elapsed * 1000))
             sys.stderr.flush()
 
             if len(best_path) > 0:
@@ -53,11 +62,36 @@ class Bot(object):
                 # else:
                 (_, chosen) = random.choice(legal)
                 self.game.issue_order(chosen)
+        return score
+
+    def iterative_deepening_alpha_beta(self, only_me):
+        i = 2
+        best_score = None
+        best_path = None
+        best_depth = i
+        while True:
+            current_time = time.time()
+            available_time = self.game.get_available_time_per_turn()
+            if current_time - start_time > available_time:
+                break
+            score, path, _ = self.alpha_beta(self.game.field, i, self.game.my_botid,
+                                             -float("inf"), float("inf"), [], only_me=only_me)
+            if score is not None:
+                best_score = score
+                best_path = path
+                best_depth = i
+            if len(best_path) < i:
+                break
+            i += 2
+        return best_score, best_path, best_depth
 
     def alpha_beta(self, field, depth, player_id, alpha, beta, move_history, only_me):
         global total_nodes
         total_nodes += 1
         moves = field.legal_moves(player_id)
+        elapsed_time = time.time() - start_time
+        if elapsed_time > self.game.get_available_time_per_turn():
+            return None, None, None
         if depth == 0 or len(moves) == 0:
             my_player = field.players[0]
             enemy_player = field.players[1]
@@ -79,7 +113,9 @@ class Bot(object):
                 v, node_history, distance = self.alpha_beta(child_field, depth - 1,
                                                             player_id if only_me else player_id ^ 1, alpha, beta,
                                                             move_history, only_me)
-                if v > best_value:  # or (v == best_value and distance < best_distance):
+                if v is None:
+                    return None, None, None
+                if v > best_value or (v == best_value and (len(node_history) > len(best_history) or distance < best_distance)):
                     best_value = v
                     best_history = [directions[i]] + node_history
                     best_distance = distance
@@ -94,7 +130,9 @@ class Bot(object):
                 v, node_history, distance = self.alpha_beta(child_field, depth - 1,
                                                             player_id if only_me else player_id ^ 1, alpha, beta,
                                                             move_history, only_me)
-                if v < best_value:  # or (v == best_value and distance < best_distance):
+                if v is None:
+                    return None, None, None
+                if v < best_value or (v == best_value and (len(node_history) >= len(best_history) or distance < best_distance)):
                     best_value = v
                     best_history = [directions[i]] + node_history
                     best_distance = distance
@@ -105,28 +143,28 @@ class Bot(object):
 
     def sort_moves(self, fields, directions, next_player_id):
         children_counts = []
+        distances = []
         for field in fields:
             child_fields, _ = self.get_child_fields(field, next_player_id)
             children_counts.append(len(child_fields))
+            distances.append(field.get_player_euclidian_distance_square())
 
-        child_list = sorted(zip(children_counts, fields, directions),
-                            key=lambda x: x[0])
+        # reverse = False if next_player_id > 0 else True
+        child_list = sorted(zip(children_counts, fields, directions, distances), key=lambda x: (x[0], x[3]))
+        _, sorted_fields, sorted_directions, sorted_distances = zip(*child_list)
 
-        sorted_fields, sorted_directions = [], []
-        for child in child_list:
-            sorted_fields.append(child[1])
-            sorted_directions.append(child[2])
         return sorted_fields, sorted_directions
 
-    def get_child_fields(self, field, next_player_id):
+    @staticmethod
+    def get_child_fields(field, next_player_id):
         child_fields = []
         directions = []
         next_player = field.players[next_player_id]
         moves = field.legal_moves(next_player_id)
         for move in moves:
-            child_field = copy.deepcopy(field)
-            child_field.cell[move[0][0]][move[0][1]] = [next_player_id]
-            child_field.cell[next_player.row][next_player.col] = [BLOCKED]
+            child_field = field.get_copy()
+            child_field.cell[move[0][0]][move[0][1]] = next_player_id
+            child_field.cell[next_player.row][next_player.col] = BLOCKED
             child_field.players[next_player_id].row, child_field.players[next_player_id].col = move[0]
             child_fields.append(child_field)
             directions.append(move[1])
