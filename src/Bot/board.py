@@ -64,6 +64,9 @@ class Board(object):
     def is_legal(self, row, col):
         return (self.in_bounds(row, col)) and (self.cell[row][col] == EMPTY)
 
+    def is_legal_with_players(self, row, col):
+        return (self.in_bounds(row, col)) and (self.cell[row][col] != BLOCKED)
+
     def get_adjacent(self, row, col):
         result = []
         # for (o_row, o_col), _ in DIRS:
@@ -75,6 +78,20 @@ class Board(object):
         if self.is_legal(row + 1, col):
             result.append((row + 1, col))
         if self.is_legal(row, col - 1):
+            result.append((row, col - 1))
+        return result
+
+    def get_adjacent_with_players(self, row, col):
+        result = []
+        # for (o_row, o_col), _ in DIRS:
+        # t_row, t_col = o_row + row, o_col + col
+        if self.is_legal_with_players(row - 1, col):
+            result.append((row - 1, col))
+        if self.is_legal_with_players(row, col + 1):
+            result.append((row, col + 1))
+        if self.is_legal_with_players(row + 1, col):
+            result.append((row + 1, col))
+        if self.is_legal_with_players(row, col - 1):
             result.append((row, col - 1))
         return result
 
@@ -148,3 +165,18 @@ class Board(object):
                                                                                                  self.players[1].row, \
                                                                                                  self.players[1].col
         return field
+
+    def is_players_separated(self):
+        area = set()
+        queue = set()
+        queue.add(self.players[0].coord)
+        while len(queue) > 0:
+            current = queue.pop()
+            if current == self.players[1].coord:
+                return False
+            area.add(current)
+            current_adjacent = self.get_adjacent_with_players(*current)
+            for adjacent in current_adjacent:
+                if adjacent not in area and adjacent not in queue:
+                    queue.add(adjacent)
+        return True

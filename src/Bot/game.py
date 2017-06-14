@@ -32,7 +32,7 @@ class Game(object):
 
     def get_available_time_per_turn(self):
         rounds_left = 0.5 * self.field.height * self.field.width - self.field.round
-        available_time = self.time_per_move + self.last_timebank / rounds_left
+        available_time = self.time_per_move + self.last_timebank / rounds_left * 1.5
         return available_time / 1000
         # return 100000000
 

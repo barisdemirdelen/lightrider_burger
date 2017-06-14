@@ -24,7 +24,7 @@ class TestBot(unittest.TestCase):
     def tearDown(self):
         pass
 
-    def test_turn_to_larger_area(self):
+    def test_turning_1(self):
         field_message = 'update game field .,0,.,.,x,x,x,x,x,x,x,x,x,x,.,.,.,x,x,1,x,.,x,x,x,x,x,.,x,x,x,x,.,.,x,x,.,.,x,x,x,x,x,.,x,x,x,x,.,.,.,x,x,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,x,x,.,.,.,.,.,x,x,x,x,x,.,.,.,.,.,x,x,.,.,.,.,x,x,x,x,x,.,.,.,.,.,.,x,x,x,x,.,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
         self.game.update(field_message)
         self.bot.do_turn()
@@ -36,7 +36,7 @@ class TestBot(unittest.TestCase):
         self.bot.do_turn()
         self.assertEqual(self.game.last_order, 'left')
 
-    def test_mate2(self):
+    def test_mate_2(self):
         initial_message = 'settings your_botid 1\n' \
                           'settings field_width 16\n' \
                           'settings field_height 16\n' \
@@ -107,17 +107,45 @@ class TestBot(unittest.TestCase):
         score = self.bot.do_turn()
         self.assertLess(score, 0)
 
-    def test_turn_2(self):
-        message = 'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,1,.,.,.,.,.,.,x,0,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
-        self.game.update(message)
-        score = self.bot.do_turn()
-        self.assertEqual(score, 0)
-
-    def test_strategical_turn(self):
+    def test_strategical_turning(self):
         message = 'update game field .,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,.,x,.,.,.,.,x,x,x,x,x,x,x,.,.,x,.,x,.,.,.,.,x,x,x,x,x,x,x,.,.,x,.,x,.,.,.,.,x,x,x,x,x,x,x,x,0,x,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,1,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
         self.game.update(message)
         self.bot.do_turn()
         self.assertEqual(self.game.last_order, 'down')
+
+    def test_turning_2(self):
+        message = 'update game round 32\n' \
+                  'update game field .,.,.,.,.,x,x,.,.,x,x,.,.,x,x,x,.,.,.,.,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,1,x,x,.,.,x,x,x,.,x,x,x,x,x,x,x,.,x,x,.,.,x,x,x,.,x,x,x,x,x,x,x,.,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,x,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,x,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,.,.,x,x,x,x,x,x,x,x,.,x,x,x,x,.,.,.,x,x,x,x,x,x,x,x,.,.,.,.,0,.,.,.,x,x,x,x,x,x,x,x\n' \
+                  'action move 4437\n'
+        self.game.update(message)
+        self.bot.do_turn()
+        self.assertEqual(self.game.last_order, 'left')
+
+    def test_mate_along_wall_2(self):
+        message = 'update game round 21\n' \
+                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,.,x,.,.,.,.,.,.,.,.,.,x,x,x,x,x,.,x,.,.,.,.,.,.,.,.,.,x,.,.,x,x,.,x,.,.,.,.,.,.,.,.,.,x,.,.,x,x,.,x,.,.,.,.,x,x,x,x,x,x,.,.,x,x,.,x,x,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,0,1,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.\n' \
+                  'action move 8381\n'
+        self.game.update(message)
+        self.bot.do_turn()
+        self.assertEqual(self.game.last_order, 'down')
+
+    def test_end_game_score(self):
+        message = 'update game round 82\n' \
+                  'update game field .,.,.,x,x,x,x,.,.,x,x,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,1,x,.,.,0,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.\n' \
+                  'action move 6427\n'
+        self.game.update(message)
+        self.bot.do_turn()
+        self.assertNotEqual(self.game.last_order, 'left')
+
+    def test_turning_3(self):
+        message = 'update game round 15\n' \
+                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,x,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,0,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,1,.,.,.,.,.,.,.,.,.,.,x,x,x,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.\n' \
+                  'action move 8517\n'
+        self.game.update(message)
+        self.bot.do_turn()
+        self.assertEqual(self.game.last_order, 'right')
+
+
 
 
 if __name__ == '__main__':
