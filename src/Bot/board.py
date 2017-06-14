@@ -1,4 +1,5 @@
 import sys
+from collections import defaultdict
 
 from Bot import player
 
@@ -142,15 +143,23 @@ class Board(object):
             best_area = max(best_area, len(area))
         return best_area
 
-    def get_player_manhattan_distance(self):
-        y0, x0 = self.players[0].row, self.players[0].col
-        y1, x1 = self.players[1].row, self.players[1].col
+    @staticmethod
+    def get_manhattan_distance(c1, c2):
+        y0, x0 = c1
+        y1, x1 = c2
         return abs(x1 - x0) + abs(y1 - y0)
 
-    def get_player_euclidian_distance_square(self):
-        y0, x0 = self.players[0].row, self.players[0].col
-        y1, x1 = self.players[1].row, self.players[1].col
+    @staticmethod
+    def get_euclidian_distance_square(c1, c2):
+        y0, x0 = c1
+        y1, x1 = c2
         return (x1 - x0) ** 2 + (y1 - y0) ** 2
+
+    def get_player_euclidian_distance_square(self):
+        return self.get_euclidian_distance_square(self.players[0].coord, self.players[1].coord)
+
+    def get_player_manhattan_distance(self):
+        return self.get_manhattan_distance(self.players[0].coord, self.players[1].coord)
 
     def get_copy(self):
         field = Board()
@@ -166,17 +175,65 @@ class Board(object):
                                                                                                  self.players[1].col
         return field
 
+    # def is_players_separated(self):
+    #     area = set()
+    #     queue = set()
+    #     queue.add(self.players[0].coord)
+    #     while len(queue) > 0:
+    #         current = queue.pop()
+    #         if current == self.players[1].coord:
+    #             return False
+    #         area.add(current)
+    #         current_adjacent = self.get_adjacent_with_players(*current)
+    #         for adjacent in current_adjacent:
+    #             if adjacent not in area and adjacent not in queue:
+    #                 queue.add(adjacent)
+    #     return True
+
     def is_players_separated(self):
-        area = set()
-        queue = set()
-        queue.add(self.players[0].coord)
-        while len(queue) > 0:
-            current = queue.pop()
-            if current == self.players[1].coord:
-                return False
-            area.add(current)
-            current_adjacent = self.get_adjacent_with_players(*current)
-            for adjacent in current_adjacent:
-                if adjacent not in area and adjacent not in queue:
-                    queue.add(adjacent)
-        return True
+        return self.a_star(self.players[0].coord, self.players[1].coord) is None
+
+    def a_star_player_to_enemy(self, player_id):
+        return self.a_star(self.players[player_id].coord, self.players[player_id ^ 1].coord)
+
+    def a_star(self, start, goal):
+        closed_set = set()
+        open_set = {start}
+
+        came_from = {}
+        g_score = defaultdict(lambda: float("inf"))
+        f_score = defaultdict(lambda: float("inf"))
+        g_score[start] = 0
+        f_score[start] = self.get_manhattan_distance(start, goal)
+
+        while len(open_set) > 0:
+            current = sorted(list(open_set), key=lambda x: f_score[x])[0]
+            if current == goal:
+                return self.reconstruct_path(came_from, current)
+
+            open_set.remove(current)
+            closed_set.add(current)
+
+            neighbours = self.get_adjacent_with_players(*current)
+            for neighbour in neighbours:
+                if neighbour in closed_set:
+                    continue
+
+                open_set.add(neighbour)
+
+                tentative_g_score = g_score[current] + 1
+                if tentative_g_score >= g_score[neighbour]:
+                    continue
+
+                came_from[neighbour] = current
+                g_score[neighbour] = tentative_g_score
+                f_score[neighbour] = tentative_g_score + self.get_manhattan_distance(neighbour, goal)
+        return None
+
+    @staticmethod
+    def reconstruct_path(came_from, current):
+        total_path = [current]
+        while current in came_from.keys():
+            current = came_from[current]
+            total_path.append(current)
+        return list(reversed(total_path[:-1]))

@@ -3,6 +3,8 @@ import unittest
 import sys
 import io
 
+import time
+
 from Bot.bot import Bot
 from Bot.game import Game
 
@@ -145,6 +147,13 @@ class TestBot(unittest.TestCase):
         self.bot.do_turn()
         self.assertEqual(self.game.last_order, 'right')
 
+    def test_strategical_turning_2(self):
+        message = 'update game round 11\n' \
+                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,x,.,.,1,.,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,x,x,x,0,x,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,x,.,.,.,.,.,.,x,x,x,x,x,x,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.\n' \
+                  'action move 8638\n'
+        self.game.update(message)
+        self.bot.do_turn()
+        self.assertEqual(self.game.last_order, 'down')
 
 
 
