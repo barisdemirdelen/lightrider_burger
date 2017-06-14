@@ -121,3 +121,8 @@ class Board(object):
                 if adjacent not in area and adjacent not in queue:
                     queue.add(adjacent)
         return len(area)
+
+    def get_player_manhattan_distance(self):
+        y0, x0 = self.players[0].row, self.players[1].col
+        y1, x1 = self.players[1].row, self.players[1].col
+        return abs(x1 - x0) + abs(y1 - y0)
