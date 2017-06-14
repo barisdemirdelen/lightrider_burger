@@ -99,13 +99,16 @@ class Bot(object):
             enemy_player = field.players[1]
             my_score = field.total_area((my_player.row, my_player.col))
             enemy_score = field.total_area((enemy_player.row, enemy_player.col))
+            distance = 0
             if only_me:
                 if self.game.my_botid == 0:
                     enemy_score = 0
                 else:
                     my_score = 0
-            distance = ((my_player.row - enemy_player.row) ** 2 + (
-                my_player.col - enemy_player.col) ** 2) ** 0.5
+            else:
+                # distance = ((my_player.row - enemy_player.row) ** 2 + (
+                #     my_player.col - enemy_player.col) ** 2) ** 0.5
+                distance = field.get_player_true_distance()
             score = my_score - enemy_score
             return score, move_history + ['pass'] if len(moves) == 0 else move_history, distance, False
 
