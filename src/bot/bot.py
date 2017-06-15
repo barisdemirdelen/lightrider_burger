@@ -48,20 +48,20 @@ class Bot(object):
             if self.separated:
                 rounds_left_0 = self.game.field.total_area(self.game.field.players[0].coord, player_id=0)
                 rounds_left_1 = self.game.field.total_area(self.game.field.players[1].coord, player_id=0)
-                self.game.rounds_left = (min(rounds_left_0, rounds_left_1) + self.game.rounds_left) // 2 + 1
+                self.game.rounds_left = min(rounds_left_0, rounds_left_1) + 1
                 score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=True)
             else:
                 # blocked_field = self.game.field.block_middle()
                 rounds_left_0 = self.game.field.total_area(self.game.field.players[0].coord, player_id=0)
                 rounds_left_1 = self.game.field.total_area(self.game.field.players[1].coord, player_id=1)
-                self.game.rounds_left = (min(rounds_left_0, rounds_left_1) // 2 + self.game.rounds_left) // 2 + 2
+                self.game.rounds_left = min(rounds_left_0, rounds_left_1) // 2 + 2
                 score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=False)
-                depth = depth / 2
+                depth = depth / 2.0
             elapsed = time.time() - start_time
 
             if score is not None:
                 sys.stderr.write(
-                    "Round: %d, Score: %.4f, Depth: %d, Nodes: %.4f, Time: %d, RoundsLeft: %d\n" % (
+                    "Round: %d, Score: %.4f, Depth: %.1f, Nodes: %.4f, Time: %d, RoundsLeft: %d\n" % (
                         self.game.field.round, score, depth, total_nodes / (self.game.field.round + 1),
                         self.game.last_timebank - elapsed * 1000, self.game.rounds_left))
             else:
@@ -75,13 +75,13 @@ class Bot(object):
                 # legal = self.game.field.legal_moves(self.game.my_botid, self.game.players)
                 # if len(legal) == 0:
                 #     self.game.issue_order_pass()
-                # else:
-                (_, chosen) = random.choice(legal)
-                self.game.issue_order(chosen)
+                # # else:
+                # (_, chosen) = random.choice(legal)
+                self.game.issue_order(legal[-1][1])
         return score
 
     def iterative_deepening_alpha_beta(self, only_me):
-        i = 2
+        i = 1
         best_score = None
         best_path = []
         best_depth = i
@@ -98,7 +98,7 @@ class Bot(object):
                 best_depth = i
             if len(best_path) < i:
                 break
-            i += 2
+            i += 1
         return best_score, best_path, best_depth
 
     def alpha_beta(self, field, depth, player_id, alpha, beta, move_history, only_me, search_path):
@@ -113,8 +113,6 @@ class Bot(object):
 
         moves = field.legal_moves(player_id)
         elapsed_time = time.time() - start_time
-        if elapsed_time > self.game.get_available_time_per_turn():
-            return None, None, None, None
         if depth == 0 or len(moves) == 0:
             my_player = field.players[0]
             enemy_player = field.players[1]
@@ -137,6 +135,9 @@ class Bot(object):
             #     score, move_history + ['pass'] if len(moves) == 0 else move_history, distance, False)
             # return self.cache[field_hash]
             return score, move_history + ['pass'] if len(moves) == 0 else move_history, distance, False
+
+        if elapsed_time > self.game.get_available_time_per_turn():
+            return None, None, None, None
 
         priority_move = None
         search_path = search_path[:]

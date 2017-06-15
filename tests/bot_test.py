@@ -179,6 +179,9 @@ class TestBot(unittest.TestCase):
         self.bot.do_turn()
         self.assertEqual(self.game.last_order, 'down')
 
+    def test_turn1(self):
+        self.bot.do_turn()
+        self.assertEqual(self.game.last_order, 'right')
 
 if __name__ == '__main__':
     unittest.main()
