@@ -5,7 +5,7 @@ import sys
 import time
 import traceback
 
-from Bot.board import Board
+from bot.board import Board
 from . import board
 from . import player
 
@@ -23,6 +23,7 @@ class Game(object):
         self.last_order = None
         self.last_update = 0
         self.last_timebank = 0
+        self.rounds_left = 0
 
     def my_player(self):
         return self.field.players[self.my_botid]
@@ -31,8 +32,7 @@ class Game(object):
         return self.field.players[self.other_botid]
 
     def get_available_time_per_turn(self):
-        rounds_left = 0.5 * self.field.height * self.field.width - self.field.round
-        available_time = self.time_per_move + self.last_timebank / rounds_left * 1.5
+        available_time = self.time_per_move + self.last_timebank / self.rounds_left
         return available_time / 1000
         # return 100000000
 

@@ -1,6 +1,6 @@
-from Bot.bot import Bot
+from bot.bot import Bot
 
-from Bot.game import Game
+from bot.game import Game
 
 
 def main():

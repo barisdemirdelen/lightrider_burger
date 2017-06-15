@@ -5,7 +5,7 @@ import sys
 
 import time
 
-from Bot.board import BLOCKED
+from bot.board import BLOCKED
 
 total_nodes = 0
 start_time = 0
@@ -27,6 +27,7 @@ class Bot(object):
         cached = 0
         score = None
         start_time = time.time()
+        self.game.rounds_left = 0.5 * self.game.field.height * self.game.field.width - self.game.field.round
         legal = self.game.field.legal_moves(self.game.my_botid)
         if len(legal) == 0:
             self.game.issue_order_pass()
@@ -45,16 +46,26 @@ class Bot(object):
             if not self.separated:
                 self.separated = self.game.field.is_players_separated()
             if self.separated:
+                rounds_left_0 = self.game.field.total_area(self.game.field.players[0].coord, player_id=0)
+                rounds_left_1 = self.game.field.total_area(self.game.field.players[1].coord, player_id=0)
+                self.game.rounds_left = (min(rounds_left_0, rounds_left_1) + self.game.rounds_left) // 2 + 1
                 score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=True)
             else:
+                # blocked_field = self.game.field.block_middle()
+                rounds_left_0 = self.game.field.total_area(self.game.field.players[0].coord, player_id=0)
+                rounds_left_1 = self.game.field.total_area(self.game.field.players[1].coord, player_id=1)
+                self.game.rounds_left = (min(rounds_left_0, rounds_left_1) // 2 + self.game.rounds_left) // 2 + 2
                 score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=False)
                 depth = depth / 2
             elapsed = time.time() - start_time
 
-            sys.stderr.write(
-                "Round: %d, Score: %.4f, Depth: %d, Nodes: %.4f, Time: %d,\n" % (
-                    self.game.field.round, score, depth, total_nodes / (self.game.field.round + 1),
-                    self.game.last_timebank - elapsed * 1000))
+            if score is not None:
+                sys.stderr.write(
+                    "Round: %d, Score: %.4f, Depth: %d, Nodes: %.4f, Time: %d, RoundsLeft: %d\n" % (
+                        self.game.field.round, score, depth, total_nodes / (self.game.field.round + 1),
+                        self.game.last_timebank - elapsed * 1000, self.game.rounds_left))
+            else:
+                sys.stderr.write("Score is None\n")
             sys.stderr.flush()
 
             if len(best_path) > 0:
@@ -111,15 +122,15 @@ class Bot(object):
             distance = 0
             if only_me:
                 if self.game.my_botid == 0:
-                    my_score = field.total_area((my_player.row, my_player.col))
+                    my_score = field.total_area(my_player.coord, player_id=self.game.my_botid)
                     enemy_score = 0
                 else:
                     my_score = 0
-                    enemy_score = field.total_area((enemy_player.row, enemy_player.col))
+                    enemy_score = field.total_area(enemy_player.coord, player_id=self.game.my_botid)
             else:
                 blocked_field = field.block_middle()
-                my_score = blocked_field.total_area((my_player.row, my_player.col))
-                enemy_score = blocked_field.total_area((enemy_player.row, enemy_player.col))
+                my_score = blocked_field.total_area(my_player.coord, 0)
+                enemy_score = blocked_field.total_area(enemy_player.coord, 1)
                 distance = field.get_player_true_distance()
             score = my_score - enemy_score
             # self.cache[field_hash] = (
@@ -128,12 +139,13 @@ class Bot(object):
             return score, move_history + ['pass'] if len(moves) == 0 else move_history, distance, False
 
         priority_move = None
-        # if len(search_path) > 0:
-        #     priority_move = search_path.pop(0)
+        search_path = search_path[:]
+        if len(search_path) > 0:
+            priority_move = search_path.pop(0)
 
         child_fields, directions = self.get_child_fields(field, player_id)
         child_fields, directions = self.sort_moves(child_fields, directions, player_id if only_me else player_id ^ 1,
-                                                   calculate_distance=not only_me, priority=priority_move)
+                                                   calculate_distance=False, priority=priority_move)
 
         if player_id == 0:
             best_value = -float("inf")
