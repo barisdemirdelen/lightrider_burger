@@ -25,6 +25,9 @@ class Board(object):
         self.round = 0
         self.initialized = False
         self.distance_cache = {}
+        self.area_cache = [{}, {}]
+        self.cache_distance = False
+        self.cache_area = False
 
     def create_board(self):
         self.initialized = True
@@ -125,6 +128,11 @@ class Board(object):
         sys.stderr.flush()
 
     def total_area(self, coord, player_id=0):
+        if self.cache_area:
+            field_hash = hash(str([coord] + self.cell))
+            if field_hash in self.area_cache[player_id]:
+                return self.area_cache[player_id][field_hash]
+
         childs = self.get_adjacent(coord[0], coord[1], player_id)
         best_area = 0
         for child in childs:
@@ -139,6 +147,8 @@ class Board(object):
                     if adjacent not in area and adjacent not in queue:
                         queue.add(adjacent)
             best_area = max(best_area, len(area))
+        if self.cache_area:
+            self.area_cache[player_id][field_hash] = best_area
         return best_area
 
     @staticmethod
@@ -193,9 +203,10 @@ class Board(object):
     def a_star(self, start, goal, player_id=0, prevent_passing=None):
         if prevent_passing is None:
             prevent_passing = defaultdict(set)
-        field_hash = hash(str([start, goal, player_id, prevent_passing] + self.cell))
-        if field_hash in self.distance_cache:
-            return self.distance_cache[field_hash]
+        if self.cache_distance:
+            field_hash = hash(str([start, goal, player_id, prevent_passing] + self.cell))
+            if field_hash in self.distance_cache:
+                return self.distance_cache[field_hash]
         closed_set = set()
         open_set = {start}
 
@@ -209,7 +220,8 @@ class Board(object):
             current = sorted(open_set, key=lambda x: f_score[x])[0]
             if current == goal:
                 final_path = self.reconstruct_path(came_from, current)
-                self.distance_cache[field_hash] = final_path
+                if self.cache_distance:
+                    self.distance_cache[field_hash] = final_path
                 return final_path
 
             open_set.remove(current)
@@ -229,7 +241,8 @@ class Board(object):
                 came_from[neighbour] = current
                 g_score[neighbour] = tentative_g_score
                 f_score[neighbour] = tentative_g_score + self.get_manhattan_distance(neighbour, goal)
-        self.distance_cache[field_hash] = None
+        if self.cache_distance:
+            self.distance_cache[field_hash] = None
         return None
 
     @staticmethod

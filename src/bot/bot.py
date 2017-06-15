@@ -81,7 +81,7 @@ class Bot(object):
         return score
 
     def iterative_deepening_alpha_beta(self, only_me):
-        i = 1
+        i = 0
         best_score = None
         best_path = []
         best_depth = i
