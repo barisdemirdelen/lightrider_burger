@@ -285,3 +285,15 @@ class Board(object):
                 c = path[(len(path) - 1) // 2]
                 field.cell[c[0]][c[1]] = BLOCKED
         return field
+
+    def set_cell(self, cell):
+        self.cell = cell
+        for row in range(len(cell)):
+            for col in range(len(cell[row])):
+                if self.cell[row][col] == PLAYER1:
+                    self.players[PLAYER1].row, self.players[PLAYER1].col = row, col
+                elif self.cell[row][col] == PLAYER2:
+                    self.players[PLAYER2].row, self.players[PLAYER2].col = row, col
+        self.width = len(cell)
+        self.height = len(cell[0])
+        self.initialized = True
