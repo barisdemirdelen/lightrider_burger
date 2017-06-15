@@ -1,12 +1,14 @@
-from bot.bot import Bot
+import tensorflow as tf
+from bot.bot_nn import BotNN
 
 from bot.game import Game
 
 
 def main():
-    bot = Bot()
-    game = Game()
-    game.run(bot)
+    with tf.Session() as sess:
+        bot = BotNN(sess, False)
+        game = Game()
+        game.run(bot)
 
 
 if __name__ == '__main__':

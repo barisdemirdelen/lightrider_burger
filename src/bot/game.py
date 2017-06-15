@@ -85,8 +85,8 @@ class Game(object):
         """issue an order, noting that (col, row) is the expected output
         however internally, (row, col) is used."""
         self.last_order = order
-        sys.stdout.write('%s\n' % order)
-        sys.stdout.flush()
+        # sys.stdout.write('%s\n' % order)
+        # sys.stdout.flush()
 
     @staticmethod
     def issue_order_pass():

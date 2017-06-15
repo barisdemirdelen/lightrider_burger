@@ -5,7 +5,7 @@ import io
 
 import time
 
-from bot.bot import Bot
+from bot.bot_minimax import Bot
 from bot.game import Game
 
 
@@ -182,6 +182,25 @@ class TestBot(unittest.TestCase):
     def test_turn1(self):
         self.bot.do_turn()
         self.assertEqual(self.game.last_order, 'right')
+
+    def input_test(self):
+        start_time = time.time()
+        initial_message = 'settings player_names player0,player1\n' \
+                          'settings your_bot player0\n' \
+                          'settings timebank 0\n' \
+                          'settings time_per_move 200\n' \
+                          'settings your_botid 0\n' \
+                          'settings field_width 16\n' \
+                          'settings field_height 16\n' \
+                          'update game round 0\n' \
+                          'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,0,.,.,.,.,.,.,.,.,1,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.\n' \
+                          'action move 1000\n'
+        self.game.update(initial_message)
+        self.bot.do_turn()
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        self.assertLess(elapsed_time, 1)
+
 
 if __name__ == '__main__':
     unittest.main()

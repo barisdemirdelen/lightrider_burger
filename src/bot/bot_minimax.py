@@ -1,6 +1,3 @@
-import copy
-import random
-
 import sys
 
 import time
@@ -21,9 +18,13 @@ class Bot(object):
     def setup(self, game):
         self.game = game
 
+    def give_reward(self, reward):
+        pass
+
     def do_turn(self):
         global start_time
         global cached
+        self.game.last_order = None
         cached = 0
         score = None
         start_time = time.time()
@@ -52,9 +53,10 @@ class Bot(object):
                 score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=True)
             else:
                 # blocked_field = self.game.field.block_middle()
+                # if self.game.field.round > 2:
                 rounds_left_0 = self.game.field.total_area(self.game.field.players[0].coord, player_id=0)
                 rounds_left_1 = self.game.field.total_area(self.game.field.players[1].coord, player_id=1)
-                self.game.rounds_left = min(rounds_left_0, rounds_left_1) // 2 + 2
+                self.game.rounds_left = min(rounds_left_0, rounds_left_1) // 2 + 1
                 score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=False)
                 depth = depth / 2.0
             elapsed = time.time() - start_time

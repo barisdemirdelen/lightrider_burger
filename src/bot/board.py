@@ -311,3 +311,10 @@ class Board(object):
         self.width = len(cell)
         self.height = len(cell[0])
         self.initialized = True
+
+    @staticmethod
+    def get_coord_of_direction(coord, move):
+        for (o_row, o_col), direction in DIRS:
+            if direction == move:
+                return o_row + coord[0], o_col + coord[1]
+        return None
