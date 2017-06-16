@@ -9,17 +9,17 @@ def conv2d_layer(x, filter, units, name, strides=None, padding='SAME'):
         kernel = tf.get_variable(f'{name}/weights', shape=[filter[0], filter[1], x.get_shape()[-1].value, units],
                                  initializer=tf.random_normal_initializer(0, 1e-2))
         conv = tf.nn.conv2d(x, filter=kernel, strides=[1, strides[0], strides[1], 1], padding=padding)
-        # biases = tf.get_variable('%s/biases' % name, shape=[units],
-        #                          initializer=tf.constant_initializer(0.0))
-        # out = tf.nn.bias_add(conv, biases)
-        post_out = leaky_relu(conv, name=name)
+        biases = tf.get_variable('%s/biases' % name, shape=[units],
+                                 initializer=tf.constant_initializer(0.0))
+        out = tf.nn.bias_add(conv, biases)
+        post_out = leaky_relu(out, name=name)
         # post_out = out
         tf.summary.histogram(f'{name}/kernel', kernel)
         # tf.summary.histogram('%s/biases' % name, biases)
     return post_out
 
 
-def leaky_relu(x, alpha=0.01, name=None):
+def leaky_relu(x, alpha=0.1, name=None):
     return tf.maximum(alpha * x, x, name=name)
 
 
@@ -77,7 +77,7 @@ def dilated_conv1d_layer(x, kernel, num_filters, name, dilation=1, stride=1, act
 def conv1d_layer(x, kernel, num_filters, name, stride=1, activation=True, padding='VALID'):
     with tf.name_scope(name) as scope:
         kernel = tf.get_variable(f'{name}/weights', shape=[kernel, x.get_shape()[-1].value, num_filters],
-                                 initializer=tf.truncated_normal_initializer(stddev=1e-5))
+                                 initializer=tf.truncated_normal_initializer(stddev=1e-2))
         post_out = tf.nn.conv1d(x, kernel, stride=stride, padding=padding)
         # biases = tf.get_variable(f'{name}/biases', shape=[num_filters],
         #                          initializer=tf.constant_initializer(0.0))
@@ -95,7 +95,7 @@ def conv1d_transpose_layer(x, kernel, output_shape, name, activation=True):
         # h, w, out, in
         output_shape.insert(1, 1)
         kernel = tf.get_variable(f'{name}/weights', [1, kernel, output_shape[-1], x.get_shape()[-1].value],
-                                 initializer=tf.truncated_normal_initializer(stddev=1e-5))
+                                 initializer=tf.truncated_normal_initializer(stddev=1e-2))
         biases = tf.get_variable(f'{name}/biases', [output_shape[-1]], initializer=tf.constant_initializer(0.0))
         x = tf.reshape(x, [-1, 1, x.get_shape()[1].value, x.get_shape()[2].value])
         convt = tf.nn.conv2d_transpose(x, kernel, output_shape=output_shape, strides=[1, 1, 2, 1])
@@ -133,7 +133,7 @@ def fully_connected(x, units, name, activation=True):
         out = tf.matmul(x, weights)
         fc = tf.nn.bias_add(out, biases)
         if activation:
-            fc = tf.nn.elu(out, name=scope)
+            fc = leaky_relu(out, name=scope)
 
         tf.summary.histogram(f'{name}/kernel', weights)
         tf.summary.histogram(f'{name}/biases', biases)

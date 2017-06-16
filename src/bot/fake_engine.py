@@ -108,10 +108,14 @@ class FakeEngine(object):
                 self.player2.give_reward(-1)
             return True
 
-        for i, player in enumerate(self.field.players):
-            self.field.cell[player.row][player.col] = BLOCKED
-            player.row, player.col = move_coords[i][0], move_coords[i][1]
-            self.field.cell[player.row][player.col] = i
+        for i, player_coord in enumerate(self.field.players):
+            self.field.cell[player_coord.row][player_coord.col] = BLOCKED
+            player_coord.row, player_coord.col = move_coords[i][0], move_coords[i][1]
+            self.field.cell[player_coord.row][player_coord.col] = i
+            for player in self.players:
+                player.game.field.cell[player_coord.row][player_coord.col] = BLOCKED
+                player.game.field.players[i].row, player.game.field.players[i].col = move_coords[i][0], move_coords[i][1]
+                player.game.field.cell[player_coord.row][player_coord.col] = i
 
         self.round += 1
         return False

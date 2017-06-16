@@ -5,22 +5,23 @@ from tensorflow.python.training.saver import Saver
 import numpy as np
 
 from bot.board import DIRS
-from bot.nn.model import Model
 import tensorflow as tf
+
+from bot.nn.model2 import Model2
 
 start_time = 0
 
 
-class BotNN(object):
+class BotNN2(object):
     def __init__(self, session = None):
         self.game = None
         self.separated = False
-        self.model = Model()
+        self.model = Model2()
         self.training = False
 
-        self.inputs = tf.placeholder(dtype=tf.float32, shape=[None, 16, 16, 3], name='inputs')
-        self.target_actions = tf.placeholder(dtype=tf.float32, shape=[None, 4], name='target_actions')
-        self.rewards = tf.placeholder(dtype=tf.float32, shape=[None], name='rewards')
+        self.inputs = tf.placeholder(dtype=tf.float32, shape=[None, 16, 16, 3], name='inputs2')
+        self.target_actions = tf.placeholder(dtype=tf.float32, shape=[None, 4], name='target_actions2')
+        self.rewards = tf.placeholder(dtype=tf.float32, shape=[None], name='rewards2')
 
         self.logits = self.model.inference(self.inputs)
         self.prediction = tf.argmax(self.logits, axis=1)
@@ -35,7 +36,7 @@ class BotNN(object):
         self.session = session
         self.session.run(init)
         try:
-            self.saver.restore(self.session, '/home/burger/projects/lightrider_burger/checkpoints/model/nn_model.ckpt')
+            self.saver.restore(self.session, '/home/burger/projects/lightrider_burger/checkpoints/model2/nn_model2.ckpt')
         except NotFoundError:
             print('Not Found')
 

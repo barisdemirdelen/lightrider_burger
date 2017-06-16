@@ -4,21 +4,21 @@ from tensorflow.contrib.layers import l2_regularizer
 from bot.nn.ops import conv2d_layer, pool2d, flatten2d, fully_connected
 
 
-class Model(object):
+class Model2(object):
     def __init__(self):
         self.weight_regularizer = l2_regularizer(1e-7)
         self.layers = {}
         self.reuse = False
 
     def inference(self, x):
-        with tf.variable_scope("nn_model"):
-            conv1_1 = conv2d_layer(x, filter=[3, 3], units=64, padding='SAME', name='conv1_1')
-            conv1_2 = conv2d_layer(conv1_1, filter=[3, 3], units=64, padding='SAME', name='conv1_2')
-            pool1 = pool2d(conv1_2, 'pool1')
+        with tf.variable_scope("nn_model2"):
+            conv1_1 = conv2d_layer(x, filter=[3, 3], units=64, padding='SAME', name='conv1_12')
+            conv1_2 = conv2d_layer(conv1_1, filter=[3, 3], units=64, padding='SAME', name='conv1_22')
+            pool1 = pool2d(conv1_2, 'pool12')
 
-            conv2_1 = conv2d_layer(pool1, filter=[3, 3], units=128, padding='SAME', name='conv2_1')
-            conv2_2 = conv2d_layer(conv2_1, filter=[3, 3], units=128, padding='SAME', name='conv2_2')
-            pool2 = pool2d(conv2_2, 'pool2')
+            conv2_1 = conv2d_layer(pool1, filter=[3, 3], units=128, padding='SAME', name='conv2_12')
+            conv2_2 = conv2d_layer(conv2_1, filter=[3, 3], units=128, padding='SAME', name='conv2_22')
+            pool2 = pool2d(conv2_2, 'pool22')
 
             # conv3_1 = conv2d_layer(pool2, filter=[3, 3], units=64, padding='SAME', name='conv3_1')
             # conv3_2 = conv2d_layer(conv3_1, filter=[3, 3], units=64, padding='SAME', name='conv3_2')
@@ -32,19 +32,19 @@ class Model(object):
             # conv5_2 = conv2d_layer(conv5_1, filter=[3, 3], units=256, padding='SAME', name='conv5_2')
             # pool5 = pool2d(conv5_2, 'pool5')
 
-            flatten = flatten2d(pool2, 'flatten')
-            fc1 = fully_connected(flatten, 256, 'fc1')
-            fc2 = fully_connected(fc1, 256, 'fc2')
-            logits = fully_connected(fc2, 4, 'fc3', activation=False)
+            flatten = flatten2d(pool2, 'flatten2')
+            fc1 = fully_connected(flatten, 256, 'fc12')
+            fc2 = fully_connected(fc1, 256, 'fc22')
+            logits = fully_connected(fc2, 4, 'fc32', activation=False)
 
         return logits
 
     def accuracy(self, logits, labels):
-        with tf.name_scope('accuracy'):
+        with tf.name_scope('accuracy2'):
             softmax = tf.nn.softmax(logits)
             correct_prediction = tf.equal(tf.argmax(softmax, 1), tf.argmax(labels, 1))
             accuracy = tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-            tf.summary.scalar("accuracy", accuracy)
+            tf.summary.scalar("accuracy2", accuracy)
 
         return accuracy
 
