@@ -6,13 +6,12 @@ import io
 import time
 
 from bot.bot_minimax import Bot
-from bot.bot_nn import BotNN
 from bot.game import Game
 
 
 class TestBot(unittest.TestCase):
     def setUp(self):
-        self.bot = BotNN()
+        self.bot = Bot()
         self.game = Game()
         initial_message = 'settings your_botid 0\n' \
                           'settings field_width 16\n' \
