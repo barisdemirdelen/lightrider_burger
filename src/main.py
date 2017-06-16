@@ -1,3 +1,4 @@
+from bot.bot_mcts import BotMCTS
 from bot.bot_minimax import Bot
 from bot.game import Game
 

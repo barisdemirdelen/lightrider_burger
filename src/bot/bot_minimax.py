@@ -3,6 +3,7 @@ import sys
 import time
 
 from bot.board import BLOCKED
+from bot.node import Node
 
 total_nodes = 0
 start_time = 0
@@ -14,6 +15,7 @@ class Bot(object):
         self.game = None
         self.separated = False
         self.cache = {}
+        self.T = []
 
     def setup(self, game):
         self.game = game
@@ -241,5 +243,3 @@ class Bot(object):
             len(node_history) > len(best_history) or (
                 len(node_history) == len(best_history) and distance < best_distance))
         # return v == best_value and distance < best_distance
-
-    # def smab(self, field, depth,):

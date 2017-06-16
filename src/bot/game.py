@@ -24,6 +24,7 @@ class Game(object):
         self.last_update = 0
         self.last_timebank = 0
         self.rounds_left = 0
+        self.silent = False
 
     def my_player(self):
         return self.field.players[self.my_botid]
@@ -85,14 +86,15 @@ class Game(object):
         """issue an order, noting that (col, row) is the expected output
         however internally, (row, col) is used."""
         self.last_order = order
-        sys.stdout.write('%s\n' % order)
-        sys.stdout.flush()
+        if not self.silent:
+            sys.stdout.write('%s\n' % order)
+            sys.stdout.flush()
 
-    @staticmethod
-    def issue_order_pass():
+    def issue_order_pass(self):
         """ pass the turn """
-        sys.stdout.write('pass\n')
-        sys.stdout.flush()
+        if not self.silent:
+            sys.stdout.write('pass\n')
+            sys.stdout.flush()
 
     def run(self, bot):
         """parse input, update game state and call the bot classes do_turn method"""

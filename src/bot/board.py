@@ -27,11 +27,15 @@ class Board(object):
         self.distance_cache = {}
         self.area_cache = [{}, {}]
         self.cache_distance = False
-        self.cache_area = False
+        self.cache_area = True
 
     def create_board(self):
         self.initialized = True
         self.cell = [[EMPTY for col in range(0, self.width)] for row in range(0, self.height)]
+        self.players[0].row = 7
+        self.players[0].col = 3
+        self.players[1].row = 7
+        self.players[1].col = 12
 
     @staticmethod
     def parse_cell_char(players, row, col, char):
@@ -186,6 +190,9 @@ class Board(object):
         field.round = self.round
         field.initialized = self.initialized
         field.distance_cache = self.distance_cache
+        field.cache_area = self.cache_area
+        field.cache_distance = self.cache_distance
+        field.area_cache = self.area_cache
         field.players = [player.Player(), player.Player()]
         field.players[0].row, field.players[0].col, field.players[1].row, field.players[1].col = self.players[0].row, \
                                                                                                  self.players[0].col, \
