@@ -15,7 +15,7 @@ class Node(object):
         self.children = []
         self.action = None
         self.possible_next_actions = []
-        self.C = 1.4
+        self.C = 1.5
 
     def select_new_action(self):
         candidates = self.possible_next_actions[:]
@@ -49,14 +49,6 @@ class Node(object):
         new_node = self.create_node(self.state, joint_action)
         self.children.append(new_node)
         return new_node
-        # p1_sorted_children = sorted(self.children,
-        #                              key=lambda x: x.score / x.visits + (2.0 * math.log(self.visits) / x.visits) ** 0.5)
-        #     return sorted_children[-1]
-        # else:
-        #     sorted_children = sorted(self.children,
-        #                              key=lambda x: x.score / x.visits - (2.0 * math.log(self.visits) / x.visits) ** 0.5)
-        #     return sorted_children[0]
-        # return None
 
     def get_action_scores(self, player_id):
         action_scores = defaultdict(list)
@@ -64,8 +56,6 @@ class Node(object):
         action_mean_scores = {}
         action_sum_visits = {}
 
-        best_score = -float("inf") if player_id == 0 else float("inf")
-        best_action = None
         for child in self.children:
             my_action = child.action[player_id]
             action_scores[my_action].append(child.score)
@@ -77,12 +67,29 @@ class Node(object):
 
         return action_mean_scores, action_sum_visits
 
+    def get_pessimistic_action_scores(self, player_id):
+        action_scores = defaultdict(list)
+        action_visits = defaultdict(list)
+        action_pessimistic_scores = {}
+
+        for child in self.children:
+            my_action = child.action[player_id]
+            action_scores[my_action].append(child.score / child.visits)
+            # action_visits[my_action].append(child.visits)
+        for action in action_scores.keys():
+            if player_id == 0:
+                action_pessimistic_scores[action] = 1.0 * min(action_scores[action])
+            else:
+                action_pessimistic_scores[action] = 1.0 * max(action_scores[action])
+
+        return action_pessimistic_scores
+
     def update(self, action, u1):
         self.score += u1
         self.visits += 1
 
     def get_best_action(self, player_id):
-        action_scores, _ = self.get_action_scores(player_id)
+        action_scores = self.get_pessimistic_action_scores(player_id)
         best_action = None
         best_score = -float('inf') if player_id == 0 else float('inf')
         for action, score in action_scores.items():

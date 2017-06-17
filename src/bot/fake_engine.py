@@ -3,7 +3,7 @@ from bot.game import Game
 
 
 class FakeEngine(object):
-    def __init__(self, player1, player2):
+    def __init__(self, player1, player2, field = None):
         self.game = Game()
         p1_game = Game()
         p2_game = Game()
@@ -19,14 +19,18 @@ class FakeEngine(object):
         #                   'settings field_height 16\n' \
         #                   'update game round 0\n' \
         #                   'action move 1000\n'
-        self.game.field.width = 16
-        self.game.field.width = 16
-        self.game.field.round = 0
+        if field:
+            self.game.field = field
+        else:
+            self.game.field.width = 16
+            self.game.field.height = 16
+            self.game.field.round = 0
 
-        self.game.field.create_board()
+            self.game.field.create_board()
 
         p1_game.field = self.game.field.get_copy()
         p2_game.field = self.game.field.get_copy()
+
 
         # self.game.update(initial_message)
         # p1_game.update(initial_message)
@@ -42,6 +46,11 @@ class FakeEngine(object):
         player1.game.my_botid = 0
         player2.game.my_botid = 1
 
+        player1.game.field.cell = self.game.field.cell
+        player2.game.field.cell = self.game.field.cell
+        player1.game.field.players = self.game.field.players
+        player2.game.field.players = self.game.field.players
+
         # player1.game.update(p1_message)
         # player2.game.update(p2_message)
 
@@ -51,22 +60,26 @@ class FakeEngine(object):
         self.players = [self.player1, self.player2]
         self.round = 0
 
-    def reset(self):
-        self.__init__(*self.players)
+    def reset(self, field = None):
+        self.__init__(*self.players, field)
 
-    def step(self):
-        # if move_override == None:
-        #     move_override = [None, None]
+    def step(self, move_override):
+        if move_override == None:
+            move_override = [None, None]
         lost = [False, False]
         move_coords = [None, None]
+        # self.player1.game.field.cell = self.game.field.cell
+        # self.player2.game.field.cell = self.game.field.cell
+        # self.player1.game.field.players = self.game.field.players
+        # self.player2.game.field.players = self.game.field.players
 
         for i, player in enumerate(self.players):
             player.game.round = self.round
-            player.game.field.cell = [row[:] for row in self.field.cell]
+            # player.game.field.cell = [row[:] for row in self.field.cell]
             player.do_turn()
             p_move = player.game.last_order
-            # if move_override[i] is not None:
-            #     p_move = move_override[i]
+            if move_override[i] is not None:
+                p_move = move_override[i]
             p_move_coord = self.field.get_coord_of_direction(self.field.players[i].coord, p_move)
             move_coords[i] = p_move_coord
 
@@ -93,11 +106,11 @@ class FakeEngine(object):
             self.field.cell[player_coord.row][player_coord.col] = BLOCKED
             player_coord.row, player_coord.col = move_coords[i][0], move_coords[i][1]
             self.field.cell[player_coord.row][player_coord.col] = i
-            for player in self.players:
-                player.game.field.cell[player_coord.row][player_coord.col] = BLOCKED
-                player.game.field.players[i].row, player.game.field.players[i].col = move_coords[i][0], move_coords[i][
-                    1]
-                player.game.field.cell[player_coord.row][player_coord.col] = i
+            # for player in self.players:
+            # player.game.field.cell[player_coord.row][player_coord.col] = BLOCKED
+            # player.game.field.players[i].row, player.game.field.players[i].col = move_coords[i][0], move_coords[i][
+            #     1]
+            # player.game.field.cell[player_coord.row][player_coord.col] = i
 
         self.round += 1
         return False

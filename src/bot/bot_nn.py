@@ -12,7 +12,7 @@ start_time = 0
 
 
 class BotNN(object):
-    def __init__(self, session = None):
+    def __init__(self, session=None):
         self.game = None
         self.separated = False
         self.model = Model()
@@ -23,8 +23,9 @@ class BotNN(object):
         self.rewards = tf.placeholder(dtype=tf.float32, shape=[None], name='rewards')
 
         self.logits = self.model.inference(self.inputs)
-        self.prediction = tf.argmax(self.logits, axis=1)
-        self.loss = self.model.loss(logits=self.logits, labels=self.target_actions, rewards=self.rewards)
+        self.probs = tf.nn.softmax(self.logits)
+        self.prediction = tf.argmax(self.probs, axis=1)
+        self.loss = self.model.loss(probs=self.probs, target_actions=self.target_actions, rewards=self.rewards)
         self.algorithm = tf.train.AdamOptimizer(learning_rate=1e-4)
         self.optimizer = self.algorithm.minimize(self.loss)
         self.reward = 0
@@ -61,8 +62,9 @@ class BotNN(object):
         self.reward = 0
 
         if not self.training:
-            action = self.session.run(self.prediction, feed_dict={self.inputs: self.get_cell_tensor()})
-            string_move = DIRS[action[0]][1]
+            probs = self.session.run(self.probs, feed_dict={self.inputs: self.get_cell_tensor()})
+            action = np.random.choice(np.arange(4), p=probs[0])
+            string_move = DIRS[action][1]
             self.game.issue_order(string_move)
 
         return 0

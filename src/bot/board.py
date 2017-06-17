@@ -155,6 +155,19 @@ class Board(object):
             self.area_cache[player_id][field_hash] = best_area
         return best_area
 
+    def total_area_fast(self, coord, player_id=0):
+        area = set()
+        queue = set()
+        queue.add(coord)
+        while len(queue) > 0:
+            current = queue.pop()
+            area.add(current)
+            current_adjacent = self.get_adjacent(current[0], current[1], player_id)
+            for adjacent in current_adjacent:
+                if adjacent not in area and adjacent not in queue:
+                    queue.add(adjacent)
+        return area
+
     @staticmethod
     def get_manhattan_distance(c1, c2):
         y0, x0 = c1
@@ -325,3 +338,18 @@ class Board(object):
             if direction == move:
                 return o_row + coord[0], o_col + coord[1]
         return None
+
+    def get_child_fields(self, next_player_id):
+        child_fields = []
+        directions = []
+        next_player = self.players[next_player_id]
+        moves = self.legal_moves(next_player_id)
+        for move in moves:
+            child_field = self.get_copy()
+            child_field.cell[move[0][0]][move[0][1]] = next_player_id
+            child_field.cell[next_player.row][next_player.col] = BLOCKED
+            child_field.players[next_player_id].row, child_field.players[next_player_id].col = move[0]
+            child_fields.append(child_field)
+            directions.append(move[1])
+
+        return child_fields, directions

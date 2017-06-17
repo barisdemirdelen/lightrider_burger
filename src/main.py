@@ -4,7 +4,7 @@ from bot.game import Game
 
 
 def main():
-    bot = Bot()
+    bot = BotMCTS()
     game = Game()
     game.run(bot)
 

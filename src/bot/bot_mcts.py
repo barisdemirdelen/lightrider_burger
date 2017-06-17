@@ -3,6 +3,7 @@ import sys
 import time
 
 from bot.board import BLOCKED
+from bot.bot_heuristic import BotHeuristic
 from bot.bot_random import BotRandom
 from bot.fake_engine import FakeEngine
 from bot.node import Node
@@ -14,8 +15,8 @@ class BotMCTS(object):
     def __init__(self):
         self.game = None
         self.current_node = None
-        self.bot1 = BotRandom()
-        self.bot2 = BotRandom()
+        self.bot1 = BotHeuristic()
+        self.bot2 = BotHeuristic()
         self.engine = FakeEngine(self.bot1, self.bot2)
 
     def setup(self, game):
@@ -56,6 +57,9 @@ class BotMCTS(object):
                 if current_time - start_time > available_time:
                     break
                 u1 = self.sm_mcts(self.current_node)
+                self.current_node.score += u1
+                self.current_node.visits += 1
+            # self.current_node.select_child()
             best_action, score = self.current_node.get_best_action(self.game.my_botid)
             if best_action is not None:
                 self.game.issue_order(best_action[1])
@@ -75,7 +79,6 @@ class BotMCTS(object):
         field = s.state
         A = field.legal_moves(0)
         B = field.legal_moves(1)
-
         if len(A) == 0 or len(B) == 0:
             if len(A) == 0 and len(B) == 0:
                 return 0
@@ -110,10 +113,10 @@ class BotMCTS(object):
 
     def playout(self, s):
         field = s.state
-        # self.engine.reset()
-        self.engine.field = field.get_copy()
-        self.bot1.game.field = field.get_copy()
-        self.bot2.game.field = field.get_copy()
+        self.engine.reset(field.get_copy())
+        # self.engine.field = field.get_copy()
+        # self.bot1.game.field = field.get_copy()
+        # self.bot2.game.field = field.get_copy()
 
         finished = self.engine.step()
         while not finished:
