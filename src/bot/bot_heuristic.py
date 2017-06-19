@@ -31,7 +31,7 @@ class BotHeuristic(object):
         return 0
 
     def last_move_heuristic(self, legal):
-        if self.last_move is not None and random.random() < 0.3:
+        if self.last_move is not None and random.random() < 0.0:
             for move in legal:
                 if self.last_move == move[1]:
                     self.game.issue_order(self.last_move)

@@ -4,7 +4,6 @@ import time
 
 from bot.board import BLOCKED
 from bot.bot_heuristic import BotHeuristic
-from bot.bot_random import BotRandom
 from bot.fake_engine import FakeEngine
 from bot.node import Node
 
@@ -93,6 +92,7 @@ class BotMCTS(object):
             new_s = Node.create_node(new_field, action)
             s.children.append(new_s)
             u1 = self.playout(new_s)
+            # u1 = self.value_factor * v + (1 - self.value_factor) * z
             new_s.update(action, u1)
             return u1
         new_s = s.select_child()
@@ -118,8 +118,11 @@ class BotMCTS(object):
         # self.bot1.game.field = field.get_copy()
         # self.bot2.game.field = field.get_copy()
 
-        finished = self.engine.step()
-        while not finished:
-            finished = self.engine.step()
+        # d_star = DStarLite(field, (0,0), (5,5))
+        # d_star.run()
+
+        self.engine.run()
 
         return self.bot1.reward
+
+

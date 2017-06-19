@@ -16,12 +16,31 @@ class Node(object):
         self.action = None
         self.possible_next_actions = []
         self.C = 1.5
+        self.heuiristic_factor = 0.0
+        self._heuristic_value = None
 
     def select_new_action(self):
         candidates = self.possible_next_actions[:]
         for child in self.children:
             candidates.remove(child.action)
         return random.choice(candidates)
+
+    def get_uct_action(self, actions, player_id):
+        best_action = None
+        best_confidence = -float('inf') if player_id == 0 else float('inf')
+        if player_id == 0:
+            for action in actions:
+                score = action[1] + self.C * (2.0 * math.log(self.visits) / action[2]) ** 0.5
+                if score > best_confidence:
+                    best_confidence = score
+                    best_action = action
+        else:
+            for action in actions:
+                score = action[1] - self.C * (2.0 * math.log(self.visits) / action[2]) ** 0.5
+                if score < best_confidence:
+                    best_confidence = score
+                    best_action = action
+        return best_action
 
     def select_child(self):
 
@@ -31,16 +50,12 @@ class Node(object):
         p1_actions, p1_visits = self.get_action_scores(0)
         p1_actions = [(k, v, p1_visits[k]) for k, v in p1_actions.items()]
 
-        p1_sorted_actions = sorted(p1_actions,
-                                   key=lambda x: x[1] + self.C * (2.0 * math.log(self.visits) / x[2]) ** 0.5)
-        p1_action = p1_sorted_actions[-1]
+        p1_action = self.get_uct_action(p1_actions, 0)
 
         p2_actions, p2_visits = self.get_action_scores(1)
         p2_actions = [(k, v, p2_visits[k]) for k, v in p2_actions.items()]
 
-        p2_sorted_actions = sorted(p2_actions,
-                                   key=lambda x: x[1] - self.C * (2.0 * math.log(self.visits) / x[2]) ** 0.5)
-        p2_action = p2_sorted_actions[0]
+        p2_action = self.get_uct_action(p2_actions, 1)
         joint_action = (p1_action[0], p2_action[0])
 
         for child in self.children:
@@ -58,7 +73,10 @@ class Node(object):
 
         for child in self.children:
             my_action = child.action[player_id]
-            action_scores[my_action].append(child.score)
+            current_score = 1.0 * child.score
+            value = child.heuristic_value
+            score = (1 - self.heuiristic_factor) * current_score + self.heuiristic_factor * value * child.visits
+            action_scores[my_action].append(score)
             action_visits[my_action].append(child.visits)
         for action in action_scores.keys():
             action_sum_visit = sum(action_visits[action])
@@ -69,12 +87,15 @@ class Node(object):
 
     def get_pessimistic_action_scores(self, player_id):
         action_scores = defaultdict(list)
-        action_visits = defaultdict(list)
+        # action_visits = defaultdict(list)
         action_pessimistic_scores = {}
 
         for child in self.children:
             my_action = child.action[player_id]
-            action_scores[my_action].append(child.score / child.visits)
+            current_score = 1.0 * child.score / child.visits
+            value = child.heuristic_value
+            score = (1 - self.heuiristic_factor) * current_score + self.heuiristic_factor * value
+            action_scores[my_action].append(score)
             # action_visits[my_action].append(child.visits)
         for action in action_scores.keys():
             if player_id == 0:
@@ -115,3 +136,32 @@ class Node(object):
         node.action = action
 
         return node
+
+    def middle_block_area_heuristic(self):
+        field = self.state
+        p1_coord = field.players[0].coord
+        p2_coord = field.players[1].coord
+
+        blocked_field = field.block_middle()
+        my_score = len(blocked_field.total_area_fast(p1_coord, 0))
+        enemy_score = len(blocked_field.total_area_fast(p2_coord, 1))
+        score = my_score / (128 - field.round) - enemy_score / (128 - field.round)
+        return score
+
+    def fast_area_heuristic(self):
+        field = self.state
+        p1_coord = field.players[0].coord
+        p2_coord = field.players[1].coord
+
+        blocked_field = field.block_middle()
+        my_score = blocked_field.total_area(p1_coord, 0)
+        enemy_score = blocked_field.total_area(p2_coord, 1)
+        score = my_score / (128 - field.round) - enemy_score / (128 - field.round)
+        return score
+
+    @property
+    def heuristic_value(self):
+        if self._heuristic_value is None:
+            # self._heuristic_value = self.middle_block_area_heuristic()
+            self._heuristic_value = 0.0
+        return self._heuristic_value

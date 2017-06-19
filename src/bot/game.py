@@ -34,7 +34,7 @@ class Game(object):
 
     def get_available_time_per_turn(self):
         available_time = self.time_per_move + self.last_timebank / self.rounds_left
-        return available_time / 1000
+        return available_time / 100
         # return 100000000
 
     def update(self, data):

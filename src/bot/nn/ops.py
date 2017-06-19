@@ -7,16 +7,16 @@ def conv2d_layer(x, filter, units, name, strides=None, padding='SAME'):
         strides = [1, 1]
     with tf.name_scope(name) as scope:
         kernel = tf.get_variable(f'{name}/weights', shape=[filter[0], filter[1], x.get_shape()[-1].value, units],
-                                 initializer=tf.random_normal_initializer(0, 1e-2))
+                                 initializer=tf.random_normal_initializer(0, 0.1))
         conv = tf.nn.conv2d(x, filter=kernel, strides=[1, strides[0], strides[1], 1], padding=padding)
         biases = tf.get_variable('%s/biases' % name, shape=[units],
                                  initializer=tf.constant_initializer(0.0))
         out = tf.nn.bias_add(conv, biases)
-        post_out = leaky_relu(out, name=name)
+        post_out = elu(out, name=name)
         # post_out = out
         tf.summary.histogram(f'{name}/kernel', kernel)
         # tf.summary.histogram('%s/biases' % name, biases)
-    return post_out
+    return post_out, kernel, biases
 
 
 def leaky_relu(x, alpha=0.1, name=None):

@@ -26,16 +26,27 @@ class Board(object):
         self.initialized = False
         self.distance_cache = {}
         self.area_cache = [{}, {}]
-        self.cache_distance = False
+        self.cache_distance = True
         self.cache_area = True
+        self.fast_area_cache = [{}, {}]
+        self.cache_fast_area = True
+        self.players_seperated = False
 
-    def create_board(self):
+    def create_board(self, coord1=None):
         self.initialized = True
         self.cell = [[EMPTY for col in range(0, self.width)] for row in range(0, self.height)]
-        self.players[0].row = 7
-        self.players[0].col = 3
-        self.players[1].row = 7
-        self.players[1].col = 12
+        if coord1 is None:
+            self.players[0].row = 7
+            self.players[0].col = 3
+            self.players[1].row = 7
+            self.players[1].col = 12
+        else:
+            self.players[0].row = coord1[0]
+            self.players[0].col = coord1[1]
+            self.players[1].row = coord1[0]
+            self.players[1].col = self.width - coord1[1] - 1
+        self.cell[self.players[0].row][self.players[0].col] = 0
+        self.cell[self.players[1].row][self.players[1].col] = 1
 
     @staticmethod
     def parse_cell_char(players, row, col, char):
@@ -156,6 +167,10 @@ class Board(object):
         return best_area
 
     def total_area_fast(self, coord, player_id=0):
+        if self.cache_fast_area:
+            field_hash = hash(str([coord] + self.cell))
+            if field_hash in self.fast_area_cache[player_id]:
+                return self.fast_area_cache[player_id][field_hash]
         area = set()
         queue = set()
         queue.add(coord)
@@ -166,6 +181,8 @@ class Board(object):
             for adjacent in current_adjacent:
                 if adjacent not in area and adjacent not in queue:
                     queue.add(adjacent)
+        if self.cache_fast_area:
+            self.fast_area_cache[player_id][field_hash] = area
         return area
 
     @staticmethod
@@ -206,6 +223,9 @@ class Board(object):
         field.cache_area = self.cache_area
         field.cache_distance = self.cache_distance
         field.area_cache = self.area_cache
+        field.cache_fast_area = self.cache_fast_area
+        field.fast_area_cache = self.fast_area_cache
+        field.players_seperated = self.players_seperated
         field.players = [player.Player(), player.Player()]
         field.players[0].row, field.players[0].col, field.players[1].row, field.players[1].col = self.players[0].row, \
                                                                                                  self.players[0].col, \
@@ -214,7 +234,9 @@ class Board(object):
         return field
 
     def is_players_separated(self):
-        return self.get_player_true_distance() == float("inf")
+        if not self.players_seperated:
+            self.players_seperated = self.get_player_true_distance() == float("inf")
+        return self.players_seperated
 
     def a_star_player_to_enemy(self, player_id, prevent_passing=None):
         return self.a_star(self.players[player_id].coord, self.players[player_id ^ 1].coord, player_id,
@@ -237,7 +259,15 @@ class Board(object):
         f_score[start] = self.get_manhattan_distance(start, goal)
 
         while len(open_set) > 0:
-            current = sorted(open_set, key=lambda x: f_score[x])[0]
+            min_open = None
+            min_f = float('inf')
+            for o in open_set:
+                f = f_score[o]
+                if f < min_f:
+                    min_f = f
+                    min_open = o
+            current = min_open
+            # current = sorted(open_set, key=lambda x: f_score[x])[0]
             if current == goal:
                 final_path = self.reconstruct_path(came_from, current)
                 if self.cache_distance:

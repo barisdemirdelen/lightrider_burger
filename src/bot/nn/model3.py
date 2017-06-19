@@ -4,7 +4,7 @@ from tensorflow.contrib.layers import l2_regularizer
 from bot.nn.ops import conv2d_layer, pool2d, flatten2d, fully_connected
 
 
-class Model2(object):
+class Model3(object):
     def __init__(self):
         self.weight_regularizer = l2_regularizer(1e-4)
         # self.weight_regularizer = None
@@ -12,17 +12,17 @@ class Model2(object):
         self.reuse = False
 
     def inference(self, x):
-        with tf.variable_scope("nn_model2"):
-            conv, W, b = conv2d_layer(x, filter=[5, 5], units=4, padding='SAME', name='conv1_12')
+        with tf.variable_scope("nn_model3"):
+            conv, W, b = conv2d_layer(x, filter=[5, 5], units=4, padding='SAME', name='conv1_13')
             self.parameters.append(W)
             self.parameters.append(b)
-
             i = 0
             for i in range(0):
-                conv, W, b = conv2d_layer(conv, filter=[3, 3], units=4, padding='SAME', name='conv1_%d2' % (i + 2))
+                conv, W, b = conv2d_layer(conv, filter=[3, 3], units=4, padding='SAME', name='conv1_%d3' % (i + 2))
                 self.parameters.append(W)
                 self.parameters.append(b)
-            conv, W, b = conv2d_layer(conv, filter=[1, 1], units=1, padding='SAME', name='conv1_%d2' % (i + 3))
+
+            conv, W, b = conv2d_layer(conv, filter=[1, 1], units=1, padding='SAME', name='conv1_%d3' % (i + 3))
             self.parameters.append(W)
             self.parameters.append(b)
             # conv3_1 = conv2d_layer(pool2, filter=[3, 3], units=64, padding='SAME', name='conv3_1')

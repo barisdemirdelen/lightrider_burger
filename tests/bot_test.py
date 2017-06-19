@@ -7,10 +7,12 @@ from bot.bot_minimax import Bot
 from bot.game import Game
 
 
+# bot =
+
 class TestBot(unittest.TestCase):
     def setUp(self):
-        self.bot = BotMCTS()
         self.game = Game()
+        self.bot = BotMCTS()
         self.game.silent = True
         initial_message = 'settings your_botid 0\n' \
                           'settings field_width 16\n' \
