@@ -67,7 +67,7 @@ class BotMinimax(object):
                 sys.stderr.write(
                     "Round: %d, Score: %.4f, Depth: %.1f, Nodes: %.4f, Time: %d, RoundsLeft: %d\n" % (
                         self.game.field.round, score, depth, total_nodes / (self.game.field.round + 1),
-                        self.game.last_timebank - elapsed * 1000, self.game.rounds_left))
+                         self.game.last_timebank - elapsed * 1000, self.game.rounds_left))
             else:
                 sys.stderr.write("Score is None\n")
             sys.stderr.flush()
@@ -90,8 +90,8 @@ class BotMinimax(object):
 
             score = 0
             score, move, best_path = self.search_root(self.game.field, i, self.game.my_botid,
-                                           -float('inf'),
-                                           float('inf'), only_me=only_me)
+                                                      -float('inf'),
+                                                      float('inf'), only_me=only_me)
             if move is not None:
                 best_score = score
                 best_move = move
@@ -100,7 +100,7 @@ class BotMinimax(object):
                 break
             if score == float('inf') or score == -float('inf'):
                 break
-            if best_path[-1] == 'pass':
+            if best_path is None or best_path[-1] == 'pass':
                 break
             i += 1
         return best_score, best_move, best_depth
@@ -112,10 +112,11 @@ class BotMinimax(object):
         best_path = None
         best_move = None
         for child_field, direction in zip(child_fields, directions):
-            score, path = self.alpha_beta(child_field, depth - 1, player_id ^ 1, -beta, -alpha, [direction], only_me, [])
+            score, path = self.alpha_beta(child_field, depth - 1, player_id ^ 1, -beta, -alpha, [direction], only_me,
+                                          [])
             if score is None:
-                break
-            score = score if player_id==0 else -score
+                return None,None,None
+            score = score if only_me else -score
             scores.append(score)
             if score > best_score:
                 best_score = score
