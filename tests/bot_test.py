@@ -27,6 +27,10 @@ class TestBot(unittest.TestCase):
     def tearDown(self):
         pass
 
+    def test_turn1(self):
+        self.bot.do_turn()
+        self.assertEqual(self.game.last_order, 'right')
+
     def test_turning_1(self):
         field_message = 'update game field .,0,.,.,x,x,x,x,x,x,x,x,x,x,.,.,.,x,x,1,x,.,x,x,x,x,x,.,x,x,x,x,.,.,x,x,.,.,x,x,x,x,x,.,x,x,x,x,.,.,.,x,x,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,x,x,.,.,.,.,.,x,x,x,x,x,.,.,.,.,.,x,x,.,.,.,.,x,x,x,x,x,.,.,.,.,.,.,x,x,x,x,.,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
         self.game.update(field_message)
@@ -180,10 +184,6 @@ class TestBot(unittest.TestCase):
         self.bot.do_turn()
         self.assertEqual(self.game.last_order, 'down')
 
-    def test_turn1(self):
-        self.bot.do_turn()
-        self.assertEqual(self.game.last_order, 'right')
-
     def test_2_turns(self):
         message = 'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,0,.,.,.,.,.,.,.,.,1,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.\n'
         self.game.update(message)
@@ -194,11 +194,15 @@ class TestBot(unittest.TestCase):
 
     def test_last_turn(self):
         message = 'update game round 77\n' \
-                  'action move 3443\n' \
+                  'action move 1000\n' \
                   'update game field x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,.,x,x,x,x,x,x,x,x,0,.,.,.,.,.,.,.,1,x,.,.,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,.,.,.,.,.,.,.,.,x,.,.,x,.,x,.,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,.,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,.,.,.,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,x,x,x,x,.,.,x,x,x,x,.,.,.,x,x,.,x,x,.,x,.,.,x,x,.,x,.,.,.,x,x,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,.,x,x,x,x,x,x,x,x,x,.,x,x,x,.,x,x,.,.,.,.,.,.,x,x,x,x,x,.,.,.,.,x,.,.,.,.,.,.,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.\n'
         self.game.update(message)
+        start_time = time.time()
         self.bot.do_turn()
-        # self.assertNotEqual(self.game.last_order, 'right')
+        elapsed_time = time.time() - start_time
+        remaining_time = self.game.last_timebank - elapsed_time * 1000
+        self.assertNotEqual(self.game.last_order, 'pass')
+        self.assertLess(0, remaining_time)
 
 
 

@@ -16,7 +16,7 @@ class Node(object):
         self.action = None
         self.possible_next_actions = []
         self.C = 0.5
-        self.heuiristic_factor = 1.5
+        self.heuiristic_factor = 0.2
         self._heuristic_value = None
         self.player_id = player_id
 
