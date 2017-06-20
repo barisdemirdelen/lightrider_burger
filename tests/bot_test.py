@@ -3,7 +3,7 @@ import unittest
 import time
 
 from bot.bot_mcts import BotMCTS
-from bot.bot_minimax import Bot
+from bot.bot_minimax import BotMinimax
 from bot.game import Game
 
 
@@ -12,7 +12,7 @@ from bot.game import Game
 class TestBot(unittest.TestCase):
     def setUp(self):
         self.game = Game()
-        self.bot = BotMCTS()
+        self.bot = BotMinimax()
         self.game.silent = True
         initial_message = 'settings your_botid 0\n' \
                           'settings field_width 16\n' \
@@ -197,6 +197,12 @@ class TestBot(unittest.TestCase):
         self.game.update(message)
         self.bot.do_turn()
 
+    def test_area_score_2(self):
+        message = 'update game round 31\n' \
+                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,x,x,x,0,.,.,.,.,.,x,.,.,.,.,.,.,.,.,x,1,.,.,.,.,.,x,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,x,x,x,x,x,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,x,.,.,x,.,x,x,x,x,x,x,x,x,x,x,.,x,.,.,x,.,.,.,.,.,x,x,.,.,.,.,.,x,.,.,x,x,x,x,x,x,x,x,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,x,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.\n' \
+                  'action move 5926\n'
+        self.game.update(message)
+        self.bot.do_turn()
 
     def input_test(self):
         start_time = time.time()

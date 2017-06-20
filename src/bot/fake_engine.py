@@ -141,3 +141,46 @@ class FakeEngine(object):
             #     self.player1.give_reward(score)
             #     return True
         return True
+
+    def free_turn(self, player_id):
+        lost = [False, False]
+        move_coords = None
+
+        player = self.players[player_id]
+        player.game.round = self.field.round
+        player.game.field.cell = self.game.field.cell
+        player.game.my_botid = player_id
+        player.game.field.players = self.game.field.players
+        # player.game.field.cell = [row[:] for row in self.field.cell]
+        player.do_turn()
+        p_move = player.game.last_order
+        p_move_coord = self.field.get_coord_of_direction(self.field.players[player_id].coord, p_move)
+        move_coords = p_move_coord
+
+        if p_move_coord is None or not self.field.is_legal(*p_move_coord, player_id):
+            lost[player_id] = True
+
+        if move_coords == self.field.players[player_id ^ 1].coord:
+            lost[0] = True
+            lost[1] = True
+
+        if True in lost:
+            # area1 = len(self.field.total_area_fast(self.field.players[0].coord, 0))
+            # area2 = len(self.field.total_area_fast(self.field.players[1].coord, 1))
+            # score = area1/(128 - self.field.round) - area2/(128 - self.field.round)
+            if lost[0] and lost[1]:
+                self.player2.give_reward(0)
+                self.player1.give_reward(0)
+            elif lost[0]:
+                self.player2.give_reward(1)
+                self.player1.give_reward(-1)
+            else:
+                self.player2.give_reward(-1)
+                self.player1.give_reward(1)
+            return True
+
+        player_coord = self.field.players[player_id]
+        self.field.cell[player_coord.row][player_coord.col] = BLOCKED
+        player_coord.row, player_coord.col = move_coords[0], move_coords[1]
+        self.field.cell[player_coord.row][player_coord.col] = player_id
+        return False

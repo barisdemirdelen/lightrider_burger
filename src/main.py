@@ -1,10 +1,9 @@
-from bot.bot_mcts import BotMCTS
-from bot.bot_minimax import Bot
+from bot.bot_minimax import BotMinimax
 from bot.game import Game
 
 
 def main():
-    bot = BotMCTS()
+    bot = BotMinimax()
     game = Game()
     game.run(bot)
 

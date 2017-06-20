@@ -3,14 +3,13 @@ import sys
 import time
 
 from bot.board import BLOCKED
-from bot.node import Node
 
 total_nodes = 0
 start_time = 0
 cached = 0
 
 
-class Bot(object):
+class BotMinimax(object):
     def __init__(self):
         self.game = None
         self.separated = False
@@ -31,6 +30,7 @@ class Bot(object):
         score = None
         start_time = time.time()
         self.game.rounds_left = 0.5 * self.game.field.height * self.game.field.width - self.game.field.round
+        self.game.field.score = None
         legal = self.game.field.legal_moves(self.game.my_botid)
         if len(legal) == 0:
             self.game.issue_order_pass()
@@ -45,6 +45,7 @@ class Bot(object):
             #         best_score = score
             #         best_move = move
             global total_nodes
+
             # total_nodes = 0
             if not self.separated:
                 self.separated = self.game.field.is_players_separated()
@@ -86,6 +87,7 @@ class Bot(object):
 
     def iterative_deepening_alpha_beta(self, only_me):
         i = 0
+        # average_score = self.evaluate(self.game.field, only_me)
         best_score = None
         best_path = []
         best_depth = i
@@ -95,7 +97,10 @@ class Bot(object):
             if current_time - start_time > available_time:
                 break
             score, path, _, _ = self.alpha_beta(self.game.field, i, self.game.my_botid,
-                                                -float("inf"), float("inf"), [], only_me=only_me, search_path=best_path)
+                                               -float('inf'),
+                                               float('inf'), [], only_me=only_me,
+                                               search_path=best_path)
+            # score = -score
             if score is not None:
                 best_score = score
                 best_path = path
@@ -122,19 +127,7 @@ class Bot(object):
             enemy_player = field.players[1]
 
             distance = 0
-            if only_me:
-                if self.game.my_botid == 0:
-                    my_score = field.total_area(my_player.coord, player_id=self.game.my_botid)
-                    enemy_score = 0
-                else:
-                    my_score = 0
-                    enemy_score = field.total_area(enemy_player.coord, player_id=self.game.my_botid)
-            else:
-                blocked_field = field.block_middle()
-                my_score = blocked_field.total_area(my_player.coord, 0)
-                enemy_score = blocked_field.total_area(enemy_player.coord, 1)
-                distance = field.get_player_true_distance()
-            score = my_score - enemy_score
+            score = self.evaluate(field, only_me)
             # self.cache[field_hash] = (
             #     score, move_history + ['pass'] if len(moves) == 0 else move_history, distance, False)
             # return self.cache[field_hash]
@@ -150,7 +143,7 @@ class Bot(object):
 
         child_fields, directions = self.get_child_fields(field, player_id)
         child_fields, directions = self.sort_moves(child_fields, directions, player_id if only_me else player_id ^ 1,
-                                                   calculate_distance=False, priority=priority_move)
+                                                   calculate_distance=False, priority=priority_move, only_me = only_me)
 
         if player_id == 0:
             best_value = -float("inf")
@@ -198,25 +191,26 @@ class Bot(object):
         # return self.cache[field_hash]
         return best_value, best_history, best_distance, pruned
 
-    def sort_moves(self, fields, directions, next_player_id, calculate_distance, priority):
+    def sort_moves(self, fields, directions, next_player_id, calculate_distance, priority, only_me):
         children_counts = []
         distances = []
         for field in fields:
             child_fields, _ = self.get_child_fields(field, next_player_id)
             children_counts.append(len(child_fields))
             if calculate_distance:
-                true_distance = field.get_player_true_distance()
+                # true_distance = field.get_player_true_distance()
+                distance_score = self.evaluate(field, only_me)
                 # distances.append(field.get_player_euclidian_distance_square())
-                distances.append(true_distance)
+                distances.append(distance_score)
             else:
                 distances.append(0)
 
         # reverse = False if next_player_id > 0 else True
         if priority is None:
-            child_list = sorted(zip(children_counts, fields, directions, distances), key=lambda x: (x[0], x[3]))
+            child_list = sorted(zip(children_counts, fields, directions, distances), key=lambda x: (x[3], x[0]))
         else:
             child_list = sorted(zip(children_counts, fields, directions, distances),
-                                key=lambda x: (0 if x[2] == priority else 1, x[0], x[3]))
+                                key=lambda x: (0 if x[2] == priority else 1, x[3], x[0]))
         _, sorted_fields, sorted_directions, sorted_distances = zip(*child_list)
 
         return sorted_fields, sorted_directions
@@ -232,6 +226,7 @@ class Bot(object):
             child_field.cell[move[0][0]][move[0][1]] = next_player_id
             child_field.cell[next_player.row][next_player.col] = BLOCKED
             child_field.players[next_player_id].row, child_field.players[next_player_id].col = move[0]
+            child_field.round += 1
             child_fields.append(child_field)
             directions.append(move[1])
 
@@ -239,7 +234,117 @@ class Bot(object):
 
     @staticmethod
     def is_better_equal(v, node_history, distance, best_value, best_history, best_distance):
-        return v == best_value and (
-            len(node_history) > len(best_history) or (
-                len(node_history) == len(best_history) and distance < best_distance))
+        # return v == best_value and (
+        #     len(node_history) > len(best_history) or (
+        #         len(node_history) == len(best_history) and distance < best_distance))
         # return v == best_value and distance < best_distance
+        return False
+
+    def evaluate(self, field, only_me):
+        # if field.score is not None:
+        #     return field.score
+        my_player = field.players[0]
+        enemy_player = field.players[1]
+
+        if only_me:
+            if self.game.my_botid == 0:
+                my_score = field.total_area(my_player.coord, player_id=self.game.my_botid)
+                enemy_score = 0
+            else:
+                my_score = 0
+                enemy_score = field.total_area(enemy_player.coord, player_id=self.game.my_botid)
+        else:
+            my_score, enemy_score = field.block_middle_score()
+            # blocked_field = field.block_middle_slow()
+            # my_score2 = blocked_field.total_area(my_player.coord, 0)
+            # enemy_score2 = blocked_field.total_area(enemy_player.coord, 1)
+            #
+            # if my_score - enemy_score != my_score2 - enemy_score2:
+            #     print('lololo')
+
+            if my_score != 0 or enemy_score != 0:
+                if my_score == 0:
+                    my_score = -float('inf')
+                elif enemy_score == 0:
+                    enemy_score = -float('inf')
+        score = my_score - enemy_score
+        if field.score is not None and field.score != score:
+            print('wart')
+        field.score = score
+        return score
+
+    def pv_search(self, field, depth, player_id, alpha, beta, move_history, only_me, search_path):
+        global total_nodes
+        global cached
+        total_nodes += 1
+        pruned = False
+
+        moves = field.legal_moves(player_id)
+        elapsed_time = time.time() - start_time
+        if depth == 0 or len(moves) == 0:
+            distance = 0
+            score = self.quiesce(field, alpha, beta, only_me, player_id)
+            return score, move_history + ['pass'] if len(
+                moves) == 0 else move_history, distance, False
+
+        if elapsed_time > self.game.get_available_time_per_turn():
+            return None, None, None, None
+
+        priority_move = None
+        search_path = search_path[:]
+        if len(search_path) > 0:
+            priority_move = search_path.pop(0)
+
+        child_fields, directions = self.get_child_fields(field, player_id)
+        child_fields, directions = self.sort_moves(child_fields, directions, player_id if only_me else player_id ^ 1,
+                                                   calculate_distance=True, priority=priority_move, only_me=only_me)
+
+        b_search_pv = True
+        best_history = []
+        distance = 0
+        child_pruned = False
+        for i, child_field in enumerate(child_fields):
+            if b_search_pv:
+                score, node_history, distance, child_pruned = self.pv_search(child_field, depth - 1,
+                                                                             player_id if only_me else player_id ^ 1,
+                                                                             -beta, -alpha,
+                                                                             move_history + [directions[i]], only_me,
+                                                                             search_path)
+                if score is None:
+                    return None, None, None, None
+                score = score if only_me else -score
+            else:
+                score, node_history, distance, child_pruned = self.pv_search(child_field, depth - 1,
+                                                                             player_id if only_me else player_id ^ 1,
+                                                                             -alpha - 1, -alpha,
+                                                                             move_history + [directions[i]], only_me,
+                                                                             search_path)
+                if score is None:
+                    return None, None, None, None
+                score = score if only_me else -score
+                if score > alpha:
+                    score, node_history, distance, child_pruned = self.pv_search(child_field, depth - 1,
+                                                                                 player_id if only_me else player_id ^ 1,
+                                                                                 -beta, -alpha,
+                                                                                 move_history + [directions[i]],
+                                                                                 only_me, search_path)
+                    if score is None:
+                        return None, None, None, None
+                    score = score if only_me else -score
+            if score >= beta:
+                return beta, node_history, distance, child_pruned
+            if score > alpha:
+                alpha = score
+                best_history = node_history
+                b_search_pv = False
+
+        return alpha, best_history, distance, child_pruned
+
+    def quiesce(self, field, alpha, beta, only_me, player_id):
+        stand_pat = self.evaluate(field, only_me)
+        stand_pat = -stand_pat if player_id == 1 else stand_pat
+        if stand_pat >= beta:
+            return beta
+        if alpha < stand_pat:
+            alpha = stand_pat
+        return alpha

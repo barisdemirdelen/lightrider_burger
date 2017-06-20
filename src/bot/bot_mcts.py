@@ -39,17 +39,21 @@ class BotMCTS(object):
         #     self.game.issue_order(legal[0][1])
         else:
             if self.current_node is None:
-                self.current_node = Node.create_node(self.game.field.get_copy(), None)
+                self.current_node = Node.create_node(self.game.field.get_copy(), None, self.game.my_botid)
             else:
                 for child in self.current_node.children:
-                    child_field = child.state
-                    if self.game.field.players[0].coord == child_field.players[0].coord and self.game.field.players[
-                        1].coord == child_field.players[1].coord:
-                        self.current_node = child
+                    if self.game.field.players[self.game.my_botid].coord == child.state.players[
+                        self.game.my_botid].coord:
+                        for grandchild in child.children:
+                            child_field = grandchild.state
+                            if self.game.field.players[self.game.my_botid ^ 1].coord == child_field.players[
+                                        self.game.my_botid ^ 1].coord:
+                                self.current_node = grandchild
+                                break
                         break
                 else:
                     sys.stderr.write('This wasnt in our plans\n')
-                    self.current_node = Node.create_node(self.game.field.get_copy(), None)
+                    self.current_node = Node.create_node(self.game.field.get_copy(), None, self.game.my_botid)
             while True:
                 current_time = time.time()
                 available_time = self.game.get_available_time_per_turn()
@@ -59,7 +63,7 @@ class BotMCTS(object):
                 self.current_node.score += u1
                 self.current_node.visits += 1
             # self.current_node.select_child()
-            best_action, score = self.current_node.get_best_action(self.game.my_botid)
+            best_action, score = self.current_node.get_best_action()
             if best_action is not None:
                 self.game.issue_order(best_action[1])
             else:
@@ -76,20 +80,17 @@ class BotMCTS(object):
 
     def sm_mcts(self, s):
         field = s.state
-        A = field.legal_moves(0)
-        B = field.legal_moves(1)
-        if len(A) == 0 or len(B) == 0:
-            if len(A) == 0 and len(B) == 0:
-                return 0
-            elif len(A) == 0:
+        A = field.legal_moves(s.player_id)
+        if len(A) == 0:
+            if s.player_id == 0:
                 return -1
             else:
                 return 1
 
         if len(s.children) < len(s.possible_next_actions):
             action = s.select_new_action()
-            new_field = self.make_move(field, action)
-            new_s = Node.create_node(new_field, action)
+            new_field = self.make_move(field, action, s.player_id)
+            new_s = Node.create_node(new_field, action, s.player_id ^ 1)
             s.children.append(new_s)
             u1 = self.playout(new_s)
             # u1 = self.value_factor * v + (1 - self.value_factor) * z
@@ -100,14 +101,14 @@ class BotMCTS(object):
         new_s.update(new_s.action, u1)
         return u1
 
-    def make_move(self, field, action):
+    def make_move(self, field, action, player_id):
         new_field = field.get_copy()
-        new_field.cell[action[0][0][0]][action[0][0][1]] = 0
-        new_field.cell[action[1][0][0]][action[1][0][1]] = 1
-        new_field.cell[new_field.players[0].row][new_field.players[0].col] = BLOCKED
-        new_field.cell[new_field.players[1].row][new_field.players[1].col] = BLOCKED
-        new_field.players[0].row, new_field.players[0].col = action[0][0]
-        new_field.players[1].row, new_field.players[1].col = action[1][0]
+        new_field.cell[action[0][0]][action[0][1]] = 0
+        # new_field.cell[action[1][0][0]][action[1][0][1]] = 1
+        new_field.cell[new_field.players[player_id].row][new_field.players[player_id].col] = BLOCKED
+        # new_field.cell[new_field.players[1].row][new_field.players[1].col] = BLOCKED
+        new_field.players[player_id].row, new_field.players[player_id].col = action[0]
+        # new_field.players[1].row, new_field.players[1].col = action[1][0]
         new_field.round += 1
         return new_field
 
@@ -120,9 +121,11 @@ class BotMCTS(object):
 
         # d_star = DStarLite(field, (0,0), (5,5))
         # d_star.run()
+        finished = False
+        if s.player_id == self.game.my_botid:
+            finished = self.engine.free_turn(s.player_id ^ 1)
 
-        self.engine.run()
+        if not finished:
+            self.engine.run()
 
         return self.bot1.reward
-
-

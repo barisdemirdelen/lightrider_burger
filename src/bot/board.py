@@ -1,5 +1,8 @@
 import sys
 from collections import defaultdict
+from heapq import heappush, heappop, _siftdown
+
+import itertools
 
 from bot import player
 
@@ -31,6 +34,7 @@ class Board(object):
         self.fast_area_cache = [{}, {}]
         self.cache_fast_area = True
         self.players_seperated = False
+        self.score = None
 
     def create_board(self, coord1=None):
         self.initialized = True
@@ -226,6 +230,7 @@ class Board(object):
         field.cache_fast_area = self.cache_fast_area
         field.fast_area_cache = self.fast_area_cache
         field.players_seperated = self.players_seperated
+        field.score = None
         field.players = [player.Player(), player.Player()]
         field.players[0].row, field.players[0].col, field.players[1].row, field.players[1].col = self.players[0].row, \
                                                                                                  self.players[0].col, \
@@ -251,6 +256,8 @@ class Board(object):
                 return self.distance_cache[field_hash]
         closed_set = set()
         open_set = {start}
+        open_heap = []
+        heappush(open_heap, (0, start))
 
         came_from = {}
         g_score = defaultdict(lambda: float("inf"))
@@ -259,14 +266,7 @@ class Board(object):
         f_score[start] = self.get_manhattan_distance(start, goal)
 
         while len(open_set) > 0:
-            min_open = None
-            min_f = float('inf')
-            for o in open_set:
-                f = f_score[o]
-                if f < min_f:
-                    min_f = f
-                    min_open = o
-            current = min_open
+            current = heappop(open_heap)[1]
             # current = sorted(open_set, key=lambda x: f_score[x])[0]
             if current == goal:
                 final_path = self.reconstruct_path(came_from, current)
@@ -282,7 +282,10 @@ class Board(object):
                 if neighbour in closed_set or neighbour in prevent_passing[current]:
                     continue
 
-                open_set.add(neighbour)
+                h = self.get_manhattan_distance(neighbour, goal)
+                if neighbour not in open_set:
+                    open_set.add(neighbour)
+                    heappush(open_heap, (h, neighbour))
 
                 tentative_g_score = g_score[current] + 1
                 if tentative_g_score >= g_score[neighbour]:
@@ -290,7 +293,7 @@ class Board(object):
 
                 came_from[neighbour] = current
                 g_score[neighbour] = tentative_g_score
-                f_score[neighbour] = tentative_g_score + self.get_manhattan_distance(neighbour, goal)
+                f_score[neighbour] = tentative_g_score + h
         if self.cache_distance:
             self.distance_cache[field_hash] = None
         return None
@@ -303,7 +306,7 @@ class Board(object):
             total_path.append(current)
         return list(reversed(total_path[:-1]))
 
-    def block_middle(self):
+    def block_middle_slow(self):
         field, prevent_p1 = self.block_middle_for_player(0)
         field, prevent_p2 = field.block_middle_for_player(1)
 
@@ -383,3 +386,67 @@ class Board(object):
             directions.append(move[1])
 
         return child_fields, directions
+
+    def block_middle_score(self):
+        p1_coord = self.players[0].coord
+        p2_coord = self.players[1].coord
+        dijkstra1, _ = self.dijkstra(p1_coord)
+        dijkstra2, _ = self.dijkstra(p2_coord)
+
+        p1_score = 0
+        p2_score = 0
+
+        for row in range(self.height):
+            for col in range(self.width):
+                # if self.is_legal(row,col):
+                if dijkstra1[(row, col)] < dijkstra2[(row, col)]:
+                    p1_score += 1
+                elif dijkstra1[(row, col)] > dijkstra2[(row, col)]:
+                    p2_score += 1
+
+        return p1_score, p2_score
+
+    def dijkstra(self, start):
+        """Returns a map of nodes to distance from start and a map of nodes to
+        the neighbouring node that is closest to start."""
+        # total distance from origin
+        tdist = defaultdict(lambda: float('inf'))
+        tdist[start] = 0
+        # neighbour that is nearest to the origin
+        preceding_node = {}
+        coords = list(range(self.width))
+        coords = list(itertools.product(coords, coords))
+        unvisited = []
+        for coord in coords:
+            heappush(unvisited, (float('inf') if coord != start else 0, coord))
+
+        # unvisited = coords
+
+        while len(unvisited) > 0:
+            min_node = heappop(unvisited)[1]
+            # if not current: break
+            # min_node = min(current, key=tdist.get)
+            # unvisited.remove(min_node)
+
+            neighbours = self.get_adjacent(*min_node)
+            for neighbour in neighbours:
+                d = tdist[min_node] + 1
+                if tdist[neighbour] > d:
+                    preceding_node[neighbour] = min_node
+                    self.decrease_key(unvisited, tdist[neighbour], d, neighbour)
+                    tdist[neighbour] = d
+
+        return tdist, preceding_node
+
+    def decrease_key(self, heap, old_key, new_key, value):
+        index = heap.index((old_key, value))
+        heap[index] = (new_key, value)
+        # for i, node in enumerate(heap):
+        #     if node[1] == value:
+        #         heap[i] = (new_key, value)
+        #         index = i
+        #         break
+        # else:
+        #     print('wrong')
+        #     return heap
+        _siftdown(heap, 0, index)
