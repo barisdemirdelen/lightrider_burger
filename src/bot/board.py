@@ -393,12 +393,11 @@ class Board(object):
         dijkstra1, _ = self.dijkstra(p1_coord)
         dijkstra2, _ = self.dijkstra(p2_coord)
 
-        p1_score = 0
-        p2_score = 0
+        p1_score = -1
+        p2_score = -1
 
         for row in range(self.height):
             for col in range(self.width):
-                # if self.is_legal(row,col):
                 if dijkstra1[(row, col)] < dijkstra2[(row, col)]:
                     p1_score += 1
                 elif dijkstra1[(row, col)] > dijkstra2[(row, col)]:
@@ -409,44 +408,30 @@ class Board(object):
     def dijkstra(self, start):
         """Returns a map of nodes to distance from start and a map of nodes to
         the neighbouring node that is closest to start."""
-        # total distance from origin
         tdist = defaultdict(lambda: float('inf'))
         tdist[start] = 0
-        # neighbour that is nearest to the origin
         preceding_node = {}
-        coords = list(range(self.width))
-        coords = list(itertools.product(coords, coords))
         unvisited = []
-        for coord in coords:
-            heappush(unvisited, (float('inf') if coord != start else 0, coord))
-
-        # unvisited = coords
+        visited = {start}
+        heappush(unvisited, (0, start))
 
         while len(unvisited) > 0:
             min_node = heappop(unvisited)[1]
-            # if not current: break
-            # min_node = min(current, key=tdist.get)
-            # unvisited.remove(min_node)
 
             neighbours = self.get_adjacent(*min_node)
             for neighbour in neighbours:
                 d = tdist[min_node] + 1
-                if tdist[neighbour] > d:
-                    preceding_node[neighbour] = min_node
-                    self.decrease_key(unvisited, tdist[neighbour], d, neighbour)
-                    tdist[neighbour] = d
+                if neighbour not in visited:
+                    if tdist[neighbour] > d:
+                        preceding_node[neighbour] = min_node
+                        heappush(unvisited, (d, neighbour))
+                        tdist[neighbour] = d
+                    visited.add(neighbour)
 
         return tdist, preceding_node
 
-    def decrease_key(self, heap, old_key, new_key, value):
+    @staticmethod
+    def decrease_key(heap, old_key, new_key, value):
         index = heap.index((old_key, value))
         heap[index] = (new_key, value)
-        # for i, node in enumerate(heap):
-        #     if node[1] == value:
-        #         heap[i] = (new_key, value)
-        #         index = i
-        #         break
-        # else:
-        #     print('wrong')
-        #     return heap
         _siftdown(heap, 0, index)

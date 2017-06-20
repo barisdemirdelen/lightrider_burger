@@ -192,17 +192,38 @@ class TestBot(unittest.TestCase):
         self.game.update(message)
         self.bot.do_turn()
 
-    def test_area_score(self):
-        message = 'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,x,x,.,x,x,x,x,.,.,.,.,x,x,.,.,.,x,x,x,x,x,x,x,.,.,.,.,x,x,.,.,.,x,x,.,.,x,x,x,.,.,.,.,.,.,.,.,.,x,x,.,.,x,x,x,.,.,.,.,.,.,.,.,.,x,x,0,.,x,x,x,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,1,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.'
+    def test_last_turn(self):
+        message = 'update game round 77\n' \
+                  'action move 3443\n' \
+                  'update game field x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,.,x,x,x,x,x,x,x,x,0,.,.,.,.,.,.,.,1,x,.,.,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,.,.,.,.,.,.,.,.,x,.,.,x,.,x,.,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,.,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,.,.,.,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,x,x,x,x,.,.,x,x,x,x,.,.,.,x,x,.,x,x,.,x,.,.,x,x,.,x,.,.,.,x,x,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,.,x,x,x,x,x,x,x,x,x,.,x,x,x,.,x,x,.,.,.,.,.,.,x,x,x,x,x,.,.,.,.,x,.,.,.,.,.,.,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.\n'
         self.game.update(message)
         self.bot.do_turn()
+        # self.assertNotEqual(self.game.last_order, 'right')
 
-    def test_area_score_2(self):
-        message = 'update game round 31\n' \
-                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,x,x,x,0,.,.,.,.,.,x,.,.,.,.,.,.,.,.,x,1,.,.,.,.,.,x,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,x,x,x,x,x,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,x,.,.,x,.,x,x,x,x,x,x,x,x,x,x,.,x,.,.,x,.,.,.,.,.,x,x,.,.,.,.,.,x,.,.,x,x,x,x,x,x,x,x,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,x,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.\n' \
-                  'action move 5926\n'
-        self.game.update(message)
-        self.bot.do_turn()
+
+
+    # def test_area_score(self):
+    #     message = 'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,x,x,.,x,x,x,x,.,.,.,.,x,x,.,.,.,x,x,x,x,x,x,x,.,.,.,.,x,x,.,.,.,x,x,.,.,x,x,x,.,.,.,.,.,.,.,.,.,x,x,.,.,x,x,x,.,.,.,.,.,.,.,.,.,x,x,0,.,x,x,x,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,1,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.'
+    #     self.game.update(message)
+    #     self.bot.do_turn()
+    #
+    # def test_area_score_2(self):
+    #     message = 'update game round 31\n' \
+    #               'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,x,x,x,0,.,.,.,.,.,x,.,.,.,.,.,.,.,.,x,1,.,.,.,.,.,x,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,x,x,x,x,x,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,x,.,.,x,.,x,x,x,x,x,x,x,x,x,x,.,x,.,.,x,.,.,.,.,.,x,x,.,.,.,.,.,x,.,.,x,x,x,x,x,x,x,x,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,x,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.\n' \
+    #               'action move 5926\n'
+    #     self.game.update(message)
+    #     self.bot.do_turn()
+    #
+    # def test_area_score_3(self):
+    #     message = 'update game round 59\n' \
+    #               'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,.,.,.,x,x,x,x,x,x,x,x,.,.,.,.,x,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,x,.,x,x,x,.,.,x,x,x,x,x,x,.,.,.,x,x,.,.,x,.,.,x,.,.,.,.,x,.,.,x,x,x,x,.,x,x,.,x,.,.,.,.,x,x,.,x,x,.,x,.,.,x,x,x,.,.,.,.,.,x,.,x,x,.,x,x,.,.,x,x,.,.,.,.,.,x,.,x,x,.,x,x,.,x,x,x,.,.,.,x,x,x,.,x,x,.,x,x,x,x,.,x,x,x,x,x,x,x,.,x,x,x,x,x,x,.,x,x,x,.,.,.,x,x,.,x,x,x,x,x,x,.,x,x,x,.,.,.,x,x,.,.,x,x,x,x,x,x,x,x,.,.,.,.,x,x,.,.,x,x,x,x,x,x,x,x,.,.,.,.,1,0,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.\n' \
+    #               'action move 5637\n'
+    #     self.game.update(message)
+    #     self.bot.do_turn()
+
+
+
+
 
     def input_test(self):
         start_time = time.time()

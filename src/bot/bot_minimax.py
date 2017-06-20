@@ -52,14 +52,14 @@ class BotMinimax(object):
             if self.separated:
                 rounds_left_0 = self.game.field.total_area(self.game.field.players[0].coord, player_id=0)
                 rounds_left_1 = self.game.field.total_area(self.game.field.players[1].coord, player_id=0)
-                self.game.rounds_left = min(rounds_left_0, rounds_left_1) + 1
+                self.game.rounds_left = min(rounds_left_0, rounds_left_1) + 2
                 score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=True)
             else:
                 # blocked_field = self.game.field.block_middle()
                 # if self.game.field.round > 2:
                 rounds_left_0 = self.game.field.total_area(self.game.field.players[0].coord, player_id=0)
                 rounds_left_1 = self.game.field.total_area(self.game.field.players[1].coord, player_id=1)
-                self.game.rounds_left = min(rounds_left_0, rounds_left_1) // 2 + 1
+                self.game.rounds_left = min(rounds_left_0, rounds_left_1) // 2 + 2
                 score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=False)
                 depth = depth / 2.0
             elapsed = time.time() - start_time
@@ -97,9 +97,9 @@ class BotMinimax(object):
             if current_time - start_time > available_time:
                 break
             score, path, _, _ = self.alpha_beta(self.game.field, i, self.game.my_botid,
-                                               -float('inf'),
-                                               float('inf'), [], only_me=only_me,
-                                               search_path=best_path)
+                                                -float('inf'),
+                                                float('inf'), [], only_me=only_me,
+                                                search_path=best_path)
             # score = -score
             if score is not None:
                 best_score = score
@@ -127,7 +127,8 @@ class BotMinimax(object):
             enemy_player = field.players[1]
 
             distance = 0
-            score = self.evaluate(field, only_me)
+            half_step = False if only_me else player_id != self.game.my_botid
+            score = self.evaluate(field, only_me, half_step)
             # self.cache[field_hash] = (
             #     score, move_history + ['pass'] if len(moves) == 0 else move_history, distance, False)
             # return self.cache[field_hash]
@@ -143,7 +144,7 @@ class BotMinimax(object):
 
         child_fields, directions = self.get_child_fields(field, player_id)
         child_fields, directions = self.sort_moves(child_fields, directions, player_id if only_me else player_id ^ 1,
-                                                   calculate_distance=False, priority=priority_move, only_me = only_me)
+                                                   calculate_distance=False, priority=priority_move, only_me=only_me)
 
         if player_id == 0:
             best_value = -float("inf")
@@ -199,7 +200,8 @@ class BotMinimax(object):
             children_counts.append(len(child_fields))
             if calculate_distance:
                 # true_distance = field.get_player_true_distance()
-                distance_score = self.evaluate(field, only_me)
+                half_step = False if only_me else next_player_id != self.game.my_botid
+                distance_score = self.evaluate(field, only_me, half_step)
                 # distances.append(field.get_player_euclidian_distance_square())
                 distances.append(distance_score)
             else:
@@ -240,7 +242,7 @@ class BotMinimax(object):
         # return v == best_value and distance < best_distance
         return False
 
-    def evaluate(self, field, only_me):
+    def evaluate(self, field, only_me, half_step):
         # if field.score is not None:
         #     return field.score
         my_player = field.players[0]
@@ -255,6 +257,11 @@ class BotMinimax(object):
                 enemy_score = field.total_area(enemy_player.coord, player_id=self.game.my_botid)
         else:
             my_score, enemy_score = field.block_middle_score()
+            if half_step:
+                if self.game.my_botid == 0:
+                    enemy_score -= 1
+                else:
+                    my_score -= 1
             # blocked_field = field.block_middle_slow()
             # my_score2 = blocked_field.total_area(my_player.coord, 0)
             # enemy_score2 = blocked_field.total_area(enemy_player.coord, 1)

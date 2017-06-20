@@ -26,7 +26,7 @@ class TestBoard(unittest.TestCase):
         self.assertEqual(self.board.total_area((0, 0), 0), 18)
         self.assertEqual(self.board.total_area((3, 3), 0), 18)
 
-        blocked = self.board.block_middle()
+        blocked1, blocked2 = self.board.block_middle_score()
         real_blocked = [
             [0, 2, 3, 2, 2],
             [2, 2, 3, 2, 2],
@@ -34,9 +34,9 @@ class TestBoard(unittest.TestCase):
             [2, 3, 3, 1, 2],
             [3, 2, 2, 2, 2]
         ]
-        self.assertEqual(blocked.cell, real_blocked)
-        self.assertEqual(blocked.total_area((0, 0), 0), 6)
-        self.assertEqual(blocked.total_area((3, 3), 0), 10)
+        self.assertEqual(blocked1, 6)
+        self.assertEqual(blocked2, 10)
+
 
     def test_board_2(self):
         self.board.set_cell([
@@ -57,7 +57,7 @@ class TestBoard(unittest.TestCase):
         self.assertEqual(self.board.total_area((3, 4), 0), 19)
         self.assertEqual(self.board.total_area((0, 0), 1), 19)
 
-        blocked = self.board.block_middle()
+        blocked1, blocked2 = self.board.block_middle_score()
         real_blocked = [
             [1, 2, 3, 2, 2],
             [2, 2, 5, 4, 2],
@@ -65,9 +65,8 @@ class TestBoard(unittest.TestCase):
             [2, 5, 3, 3, 0],
             [5, 4, 2, 2, 2]
         ]
-        self.assertEqual(blocked.cell, real_blocked)
-        self.assertEqual(blocked.total_area((3, 4), 0), 6)
-        self.assertEqual(blocked.total_area((0, 0), 1), 9)
+        self.assertEqual(blocked1, 10)
+        self.assertEqual(blocked2, 9)
 
     def test_board_3(self):
         self.board.set_cell([
@@ -91,7 +90,7 @@ class TestBoard(unittest.TestCase):
         self.assertEqual(self.board.total_area(player0, 0), 21)
         self.assertEqual(self.board.total_area(player1, 1), 21)
 
-        blocked = self.board.block_middle()
+        blocked1, blocked2 = self.board.block_middle_score()
         real_blocked = [
             [2, 4, 5, 2, 2],
             [2, 4, 5, 2, 2],
@@ -99,6 +98,5 @@ class TestBoard(unittest.TestCase):
             [2, 4, 5, 2, 2],
             [2, 4, 5, 2, 2]
         ]
-        self.assertEqual(blocked.cell, real_blocked)
-        self.assertEqual(blocked.total_area(player0, 0), 4)
-        self.assertEqual(blocked.total_area(player1, 1), 13)
+        self.assertEqual(blocked1, 8)
+        self.assertEqual(blocked2, 13)
