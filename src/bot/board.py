@@ -387,7 +387,7 @@ class Board(object):
 
         return child_fields, directions
 
-    def block_middle_score(self):
+    def block_middle_score(self, p1_extra=0, p2_extra=0):
         p1_coord = self.players[0].coord
         p2_coord = self.players[1].coord
         dijkstra1, _ = self.dijkstra(p1_coord)
@@ -398,9 +398,9 @@ class Board(object):
 
         for row in range(self.height):
             for col in range(self.width):
-                if dijkstra1[(row, col)] < dijkstra2[(row, col)]:
+                if dijkstra1[(row, col)] + p1_extra < dijkstra2[(row, col)] + p2_extra:
                     p1_score += 1
-                elif dijkstra1[(row, col)] > dijkstra2[(row, col)]:
+                elif dijkstra1[(row, col)] + p1_extra > dijkstra2[(row, col)] + p2_extra:
                     p2_score += 1
 
         return p1_score, p2_score

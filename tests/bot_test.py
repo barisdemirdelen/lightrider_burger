@@ -204,6 +204,11 @@ class TestBot(unittest.TestCase):
         self.assertNotEqual(self.game.last_order, 'pass')
         self.assertLess(0, remaining_time)
 
+    def test_wrong_mate(self):
+        message = 'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,x,x,x,x,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,.,x,x,x,x,x,.,.,.,.,x,.,x,x,x,x,.,x,x,x,x,x,.,.,.,.,x,.,.,x,x,x,x,x,x,.,.,.,.,.,.,.,x,.,x,x,x,x,x,.,x,.,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,0,.,x,x,x,x,x,x,x,.,x,x,x,.,.,.,.,.,1,.,x,x,x,x,x,x,x,x,x,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
+        self.game.update(message)
+        self.bot.do_turn()
+
 
 
     # def test_area_score(self):

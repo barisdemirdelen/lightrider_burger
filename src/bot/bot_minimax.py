@@ -121,7 +121,6 @@ class BotMinimax(object):
         best_move = None
         i = 0
         for child_field, direction in zip(child_fields, directions):
-            # current_path = search_path if i == 0 else []
             score, path = self.alpha_beta(child_field, depth - 1, player_id ^ 1, -beta, -best_score, [direction],
                                           only_me,
                                           search_path)
@@ -140,6 +139,8 @@ class BotMinimax(object):
         global total_nodes
         global cached
         total_nodes += 1
+        if only_me:
+            alpha, beta = -beta, -alpha
 
         moves = field.legal_moves(player_id)
         elapsed_time = time.time() - start_time
@@ -162,18 +163,40 @@ class BotMinimax(object):
                                                    calculate_distance=False, priority=priority_move, only_me=only_me)
 
         alpha_history = move_history
+        bv_search = True
         for i, child_field in enumerate(child_fields):
-            v, node_history = self.alpha_beta(child_field, depth - 1, player_id if only_me else player_id ^ 1,
-                                              alpha if only_me else -beta, beta if only_me else -alpha, move_history,
-                                              only_me, search_path)
-            if v is None:
-                return None, None
-            v = v if only_me else -v
-            if v >= beta:
-                return v, node_history
-            if v > alpha:
-                alpha = v
+            if bv_search:
+                score, node_history = self.alpha_beta(child_field, depth - 1, player_id if only_me else player_id ^ 1,
+                                                      -beta, -alpha,
+                                                      move_history,
+                                                      only_me, search_path)
+                if score is None:
+                    return None, None
+                score = score if only_me else -score
+            else:
+                score, node_history = self.alpha_beta(child_field, depth - 1, player_id if only_me else player_id ^ 1,
+                                                      -alpha - 1, -alpha,
+                                                      move_history,
+                                                      only_me, search_path)
+                if score is None:
+                    return None, None
+                score = score if only_me else -score
+                if score > alpha:
+                    score, node_history = self.alpha_beta(child_field, depth - 1,
+                                                          player_id if only_me else player_id ^ 1,
+                                                          -beta, -alpha,
+                                                          move_history,
+                                                          only_me, search_path)
+                    if score is None:
+                        return None, None
+                    score = score if only_me else -score
+
+            if score >= beta:
+                return score, node_history
+            if score > alpha:
+                alpha = score
                 alpha_history = [directions[i]] + node_history
+                bv_search = False
         return alpha, alpha_history
 
     def sort_moves(self, fields, directions, next_player_id, calculate_distance, priority, only_me):
@@ -229,7 +252,14 @@ class BotMinimax(object):
                 my_score = 0
                 enemy_score = field.total_area(enemy_player.coord, player_id=self.game.my_botid)
         else:
-            my_score, enemy_score = field.block_middle_score()
+            p1_extra = 0
+            p2_extra = 0
+            if half_step:
+                if self.game.my_botid == 0:
+                    p1_extra=1
+                else:
+                    p2_extra = 1
+            my_score, enemy_score = field.block_middle_score(p1_extra, p2_extra)
             if half_step:
                 if self.game.my_botid == 0:
                     enemy_score -= 1
