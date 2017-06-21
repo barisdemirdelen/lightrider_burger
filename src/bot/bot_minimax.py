@@ -13,7 +13,12 @@ class BotMinimax(object):
     def __init__(self):
         self.game = None
         self.separated = False
+        self.cache_nodes = True
         self.cache = {}
+        self.histories = {}
+        self.depths = {}
+        self.last_path = []
+        self.last_only_me = False
         self.T = []
 
     def setup(self, game):
@@ -24,9 +29,7 @@ class BotMinimax(object):
 
     def do_turn(self):
         global start_time
-        global cached
         self.game.last_order = None
-        cached = 0
         score = None
         start_time = time.time()
         self.game.rounds_left = 0.5 * self.game.field.height * self.game.field.width - self.game.field.round
@@ -53,31 +56,50 @@ class BotMinimax(object):
                 rounds_left_0 = self.game.field.total_area(self.game.field.players[0].coord, player_id=0)
                 rounds_left_1 = self.game.field.total_area(self.game.field.players[1].coord, player_id=0)
                 self.game.rounds_left = min(rounds_left_0, rounds_left_1) + 1
-                score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=True)
+                search_path = []
+                if self.last_path is not None and len(self.last_path) > 0:
+                    if self.last_only_me:
+                        search_path = self.last_path[1:]
+                    else:
+                        if len(self.last_path) > 1:
+                            for j in range(len(self.last_path)):
+                                if j % 2 == 0:
+                                    search_path.append(self.last_path[j])
+                score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=True, search_path=search_path)
             else:
                 # blocked_field = self.game.field.block_middle()
                 # if self.game.field.round > 2:
                 rounds_left_0 = self.game.field.total_area(self.game.field.players[0].coord, player_id=0)
                 self.game.rounds_left = rounds_left_0 + 1
-                score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=False)
-                depth = depth / 2.0
+                search_path = []
+                if self.last_path is not None and len(self.last_path) > 1:
+                    search_path = self.last_path[2:]
+                score, best_path, depth = self.iterative_deepening_alpha_beta(only_me=False, search_path=search_path)
+                # depth = depth / 2.0
+            self.last_only_me = self.separated
+            self.last_path = best_path
+
             elapsed = time.time() - start_time
 
             if score is not None:
                 sys.stderr.write(
-                    "Round: %d, Score: %.4f, Depth: %.1f, Nodes: %.4f, Time: %d, RoundsLeft: %d\n" % (
+                    "Round: %d, Score: %.4f, Depth: %.1f, Nodes: %.4f, Time: %d, RoundsLeft: %d, Cached: %d\n" % (
                         self.game.field.round, score, depth, total_nodes / (self.game.field.round + 1),
-                        self.game.last_timebank - elapsed * 1000, self.game.rounds_left))
+                        self.game.last_timebank - elapsed * 1000, self.game.rounds_left, cached))
             else:
                 sys.stderr.write("Score is None\n")
             sys.stderr.flush()
-
-            self.game.issue_order(best_path)
+            if len(best_path) > 0:
+                self.game.issue_order(best_path[0])
+            else:
+                self.game.issue_order(legal[0][1])
 
         return score
 
-    def iterative_deepening_alpha_beta(self, only_me):
+    def iterative_deepening_alpha_beta(self, only_me, search_path):
         i = 1
+        global cached
+        cached = 0
         # average_score = self.evaluate(self.game.field, only_me)
         best_score = None
         best_move = None
@@ -89,62 +111,34 @@ class BotMinimax(object):
             if current_time - start_time > available_time:
                 break
 
-            score, move, path = self.search_root(self.game.field, i, self.game.my_botid,
-                                                 -float('inf'),
-                                                 float('inf'), only_me=only_me, priority=best_path)
-            if move is not None:
+            score, path = self.alpha_beta(self.game.field, i, self.game.my_botid,
+                                          -float('inf'),
+                                          float('inf'), move_history=[], only_me=only_me, search_path=best_path)
+            if path is not None:
                 best_score = score
-                best_move = move
+                best_move = path[0]
                 best_depth = i
                 best_path = path
             if best_move == 'pass':
                 break
             if score == float('inf') or score == -float('inf'):
                 break
-            if best_path is None or best_path[-1] == 'pass':
+            if best_path is None or best_path[-1] == 'pass' or len(best_path) < i:
+                break
+            if i > self.game.rounds_left * 2:
                 break
             i += 1
-        return best_score, best_move, best_depth
-
-    def search_root(self, field, depth, player_id, alpha, beta, only_me, priority):
-        priority_move = None
-        search_path = priority[:]
-        if len(search_path) > 0:
-            priority_move = search_path.pop(0)
-
-        child_fields, directions = self.get_child_fields(field, player_id)
-        child_fields, directions = self.sort_moves(child_fields, directions, player_id,
-                                                   calculate_distance=False, priority=priority_move, only_me=only_me)
-        scores = []
-        best_score = alpha
-        best_path = None
-        best_move = None
-        i = 0
-        for child_field, direction in zip(child_fields, directions):
-            score, path = self.alpha_beta(child_field, depth - 1, player_id ^ 1, -beta, -best_score, [direction],
-                                          only_me,
-                                          search_path)
-            if score is None:
-                return None, None, None
-            score = score if only_me else -score
-            scores.append(score)
-            if score > best_score:
-                best_score = score
-                best_move = direction
-                best_path = path
-            i += 1
-        return best_score, best_move, best_path
+        return best_score, best_path, best_depth
 
     def alpha_beta(self, field, depth, player_id, alpha, beta, move_history, only_me, search_path):
         global total_nodes
-        global cached
         total_nodes += 1
         if only_me:
             alpha, beta = -beta, -alpha
 
         moves = field.legal_moves(player_id)
         elapsed_time = time.time() - start_time
-        if depth == 0 or len(moves) == 0:
+        if depth <= 0 or len(moves) == 0:
             half_step = False if only_me else player_id != self.game.my_botid
             score = self.evaluate(field, only_me, half_step)
             return score if player_id == 0 or only_me else -score, move_history + ['pass'] if len(
@@ -160,45 +154,88 @@ class BotMinimax(object):
 
         child_fields, directions = self.get_child_fields(field, player_id)
         child_fields, directions = self.sort_moves(child_fields, directions, player_id,
-                                                   calculate_distance=False, priority=priority_move, only_me=only_me)
+                                                   calculate_distance=True, priority=priority_move, only_me=only_me)
 
+        best_score, alpha_history = self.aspiration_search_moves(child_fields, directions, depth, player_id, alpha,
+                                                                 beta, move_history, only_me,
+                                                                 search_path)
+        return best_score, alpha_history
+
+    def aspiration_search_moves(self, child_fields, directions, depth, player_id, alpha, beta, move_history, only_me,
+                                search_path):
+        global cached
         alpha_history = move_history
         best_score = 0
+        next_depth = depth - 1
         score = -float('inf')
         for i, child_field in enumerate(child_fields):
             if i == 0:
-                best_score, node_history = self.alpha_beta(child_field, depth - 1,
-                                                           player_id if only_me else player_id ^ 1,
-                                                           -beta, -alpha,
-                                                           move_history,
-                                                           only_me, search_path)
-                if best_score is None:
-                    return None, None
-                best_score = best_score if only_me else -best_score
+                get_score_from_cache = False
+                if self.cache_nodes:
+                    child_hash = child_field.get_search_hash()
+                    if child_hash in self.cache:
+                        if next_depth <= self.depths[child_hash]:
+                            get_score_from_cache = True
+                    if get_score_from_cache:
+                        best_score = self.cache[child_hash]
+                        node_history = self.histories[child_hash]
+                        cached += 1
+                if not get_score_from_cache:
+                    best_score, node_history = self.alpha_beta(child_field, next_depth,
+                                                               player_id if only_me else player_id ^ 1,
+                                                               -beta, -alpha,
+                                                               move_history,
+                                                               only_me, search_path)
+                    if best_score is None:
+                        return None, None
+                    best_score = best_score if only_me else -best_score
+                    if self.cache_nodes:
+                        self.cache[child_hash] = best_score
+                        self.histories[child_hash] = node_history
+                        self.depths[child_hash] = next_depth
+
                 if best_score > alpha:
                     alpha_history = [directions[i]] + node_history
                     if best_score >= beta:
                         return best_score, alpha_history
                     alpha = best_score
             else:
-                score, node_history = self.alpha_beta(child_field, depth - 1, player_id if only_me else player_id ^ 1,
-                                                      -alpha - 1, -alpha,
-                                                      move_history,
-                                                      only_me, search_path)
-                if score is None:
-                    return None, None
-                score = score if only_me else -score
-                if beta > score > alpha:
-                    score, node_history = self.alpha_beta(child_field, depth - 1,
+                get_score_from_cache = False
+                if self.cache_nodes:
+                    child_hash = child_field.get_search_hash()
+                    if child_hash in self.cache:
+                        if depth - 1 <= self.depths[child_hash]:
+                            get_score_from_cache = True
+                    if get_score_from_cache:
+                        score = self.cache[child_hash]
+                        node_history = self.histories[child_hash]
+                        cached += 1
+                if not get_score_from_cache:
+                    next_depth = 0
+                    score, node_history = self.alpha_beta(child_field, next_depth,
                                                           player_id if only_me else player_id ^ 1,
-                                                          -beta, -alpha,
+                                                          -alpha - 1, -alpha,
                                                           move_history,
                                                           only_me, search_path)
                     if score is None:
                         return None, None
                     score = score if only_me else -score
-                    if score > alpha:
-                        alpha = score
+                    if beta > score > alpha:
+                        next_depth = depth -1
+                        score, node_history = self.alpha_beta(child_field, next_depth,
+                                                              player_id if only_me else player_id ^ 1,
+                                                              -beta, -alpha,
+                                                              move_history,
+                                                              only_me, search_path)
+                        if score is None:
+                            return None, None
+                        score = score if only_me else -score
+                        if score > alpha:
+                            alpha = score
+                    if self.cache_nodes:
+                        self.cache[child_hash] = score
+                        self.histories[child_hash] = node_history
+                        self.depths[child_hash] = next_depth
 
             if score > best_score:
                 alpha_history = [directions[i]] + node_history
@@ -208,53 +245,13 @@ class BotMinimax(object):
 
         return best_score, alpha_history
 
-    def zw_search(self, field, depth, player_id, beta, move_history, only_me, search_path):
-        global total_nodes
-        total_nodes += 1
-        if only_me:
-            beta = -beta
-
-        moves = field.legal_moves(player_id)
-        elapsed_time = time.time() - start_time
-        if depth == 0 or len(moves) == 0:
-            half_step = False if only_me else player_id != self.game.my_botid
-            score = self.evaluate(field, only_me, half_step)
-            return score if player_id == 0 or only_me else -score, move_history + ['pass'] if len(
-                moves) == 0 else move_history
-
-        if elapsed_time > self.game.get_available_time_per_turn():
-            return None, None
-
-        priority_move = None
-        search_path = search_path[:]
-        if len(search_path) > 0:
-            priority_move = search_path.pop(0)
-        child_fields, directions = self.get_child_fields(field, player_id)
-        child_fields, directions = self.sort_moves(child_fields, directions, player_id,
-                                                   calculate_distance=False, priority=priority_move, only_me=only_me)
-
-        i = 0
-        node_history = []
-        for i, child_field in enumerate(child_fields):
-            score, node_history = self.zw_search(child_field, depth - 1, player_id if only_me else player_id ^ 1,
-                                                 1 - beta,
-                                                 move_history,
-                                                 only_me, search_path)
-            if score is None:
-                return None, None
-            score = score if only_me else -score
-
-            if score >= beta:
-                return beta, node_history
-        return beta - 1, [directions[i]] + node_history
-
     def sort_moves(self, fields, directions, next_player_id, calculate_distance, priority, only_me):
         children_counts = []
         distances = []
         for field in fields:
             child_fields, _ = self.get_child_fields(field, next_player_id)
             children_counts.append(len(child_fields))
-            if calculate_distance:
+            if calculate_distance and priority == False:
                 half_step = False if only_me else next_player_id == self.game.my_botid
                 distance_score = self.evaluate(field, only_me, half_step)
                 distances.append(distance_score if next_player_id == 1 else -distance_score)
@@ -269,23 +266,6 @@ class BotMinimax(object):
         _, sorted_fields, sorted_directions, sorted_distances = zip(*child_list)
 
         return sorted_fields, sorted_directions
-
-    @staticmethod
-    def get_child_fields(field, next_player_id):
-        child_fields = []
-        directions = []
-        next_player = field.players[next_player_id]
-        moves = field.legal_moves(next_player_id)
-        for move in moves:
-            child_field = field.get_copy()
-            child_field.cell[move[0][0]][move[0][1]] = next_player_id
-            child_field.cell[next_player.row][next_player.col] = BLOCKED
-            child_field.players[next_player_id].row, child_field.players[next_player_id].col = move[0]
-            child_field.round += 1
-            child_fields.append(child_field)
-            directions.append(move[1])
-
-        return child_fields, directions
 
     def evaluate(self, field, only_me, half_step):
         if field.score is not None:
@@ -323,4 +303,63 @@ class BotMinimax(object):
         if field.score is not None and field.score != score:
             print('wart')
         field.score = score
+        field.depth = field.round - self.game.field.round
         return score
+
+    @staticmethod
+    def get_child_fields(field, next_player_id):
+        child_fields = []
+        directions = []
+        next_player = field.players[next_player_id]
+        moves = field.legal_moves(next_player_id)
+        for move in moves:
+            child_field = field.get_copy()
+            child_field.cell[move[0][0]][move[0][1]] = next_player_id
+            child_field.cell[next_player.row][next_player.col] = BLOCKED
+            child_field.players[next_player_id].row, child_field.players[next_player_id].col = move[0]
+            child_field.round += 1
+            child_fields.append(child_field)
+            directions.append(move[1])
+
+        return child_fields, directions
+
+
+        # def zw_search(self, field, depth, player_id, beta, move_history, only_me, search_path):
+        #     global total_nodes
+        #     total_nodes += 1
+        #     if only_me:
+        #         beta = -beta
+        #
+        #     moves = field.legal_moves(player_id)
+        #     elapsed_time = time.time() - start_time
+        #     if depth == 0 or len(moves) == 0:
+        #         half_step = False if only_me else player_id != self.game.my_botid
+        #         score = self.evaluate(field, only_me, half_step)
+        #         return score if player_id == 0 or only_me else -score, move_history + ['pass'] if len(
+        #             moves) == 0 else move_history
+        #
+        #     if elapsed_time > self.game.get_available_time_per_turn():
+        #         return None, None
+        #
+        #     priority_move = None
+        #     search_path = search_path[:]
+        #     if len(search_path) > 0:
+        #         priority_move = search_path.pop(0)
+        #     child_fields, directions = self.get_child_fields(field, player_id)
+        #     child_fields, directions = self.sort_moves(child_fields, directions, player_id,
+        #                                                calculate_distance=False, priority=priority_move, only_me=only_me)
+        #
+        #     i = 0
+        #     node_history = []
+        #     for i, child_field in enumerate(child_fields):
+        #         score, node_history = self.zw_search(child_field, depth - 1, player_id if only_me else player_id ^ 1,
+        #                                              1 - beta,
+        #                                              move_history,
+        #                                              only_me, search_path)
+        #         if score is None:
+        #             return None, None
+        #         score = score if only_me else -score
+        #
+        #         if score >= beta:
+        #             return beta, node_history
+        #     return beta - 1, [directions[i]] + node_history

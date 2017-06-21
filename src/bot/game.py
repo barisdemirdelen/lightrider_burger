@@ -33,7 +33,7 @@ class Game(object):
         return self.field.players[self.other_botid]
 
     def get_available_time_per_turn(self):
-        available_time = self.time_per_move + 4.0 * self.last_timebank / self.rounds_left
+        available_time = self.time_per_move + 1.5 * self.last_timebank / self.rounds_left
         if available_time > self.last_timebank:
             available_time = self.last_timebank * 0.98
         return available_time / 1000

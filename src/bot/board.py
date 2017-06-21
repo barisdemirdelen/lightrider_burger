@@ -2,8 +2,6 @@ import sys
 from collections import defaultdict
 from heapq import heappush, heappop, _siftdown
 
-import itertools
-
 from bot import player
 
 PLAYER1, PLAYER2, EMPTY, BLOCKED = [0, 1, 2, 3]
@@ -17,7 +15,6 @@ DIRS = [
     ((1, 0), 'down'),
     ((0, -1), 'left')
 ]
-
 
 class Board(object):
     def __init__(self):
@@ -35,6 +32,9 @@ class Board(object):
         self.cache_fast_area = True
         self.players_seperated = False
         self.score = None
+        self.search_depth = 0
+        self.search_score = 0
+        self.hash = None
 
     def create_board(self, coord1=None):
         self.initialized = True
@@ -94,7 +94,24 @@ class Board(object):
                                                self.cell[row][col] == PLAYER2 or
                                                self.cell[row][col] == 4 + player_id)
 
-    def get_adjacent(self, row, col, player_id=0):
+    def get_adjacent(self, row, col):
+        l1, l2, l3, l4 = None, None, None, None
+
+        if 0 <= row - 1 < 16 and 0 <= col < 16 and self.cell[row - 1][col] == EMPTY:
+            l1 = (row - 1, col)
+        if 0 <= row < 16 and 0 <= col + 1 < 16 and self.cell[row][col + 1] == EMPTY:
+            l2 = (row, col + 1)
+        if 0 <= row + 1 < 16 and 0 <= col < 16 and self.cell[row + 1][col] == EMPTY:
+            l3 = (row + 1, col)
+        if 0 <= row < 16 and 0 <= col - 1 < 16 and self.cell[row][col - 1] == EMPTY:
+            l4 = (row, col - 1)
+
+        result = {l1, l2, l3, l4}
+        if None in result:
+            result.remove(None)
+        return result
+
+    def get_adjacent_slow(self, row, col, player_id=0):
         result = []
         # for (o_row, o_col), _ in DIRS:
         # t_row, t_col = o_row + row, o_col + col
@@ -152,7 +169,7 @@ class Board(object):
             if field_hash in self.area_cache[player_id]:
                 return self.area_cache[player_id][field_hash]
 
-        childs = self.get_adjacent(coord[0], coord[1], player_id)
+        childs = self.get_adjacent(coord[0], coord[1])
         best_area = 0
         for child in childs:
             area = set()
@@ -161,7 +178,7 @@ class Board(object):
             while len(queue) > 0:
                 current = queue.pop()
                 area.add(current)
-                current_adjacent = self.get_adjacent(current[0], current[1], player_id)
+                current_adjacent = self.get_adjacent(current[0], current[1])
                 for adjacent in current_adjacent:
                     if adjacent not in area and adjacent not in queue:
                         queue.add(adjacent)
@@ -181,7 +198,7 @@ class Board(object):
         while len(queue) > 0:
             current = queue.pop()
             area.add(current)
-            current_adjacent = self.get_adjacent(current[0], current[1], player_id)
+            current_adjacent = self.get_adjacent(current[0], current[1])
             for adjacent in current_adjacent:
                 if adjacent not in area and adjacent not in queue:
                     queue.add(adjacent)
@@ -435,3 +452,8 @@ class Board(object):
         index = heap.index((old_key, value))
         heap[index] = (new_key, value)
         _siftdown(heap, 0, index)
+
+    def get_search_hash(self):
+        if self.hash is None:
+            self.hash = hash(str(self.cell))
+        return self.hash
