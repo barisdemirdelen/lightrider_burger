@@ -67,7 +67,7 @@ class BotMinimax(object):
                 sys.stderr.write(
                     "Round: %d, Score: %.4f, Depth: %.1f, Nodes: %.4f, Time: %d, RoundsLeft: %d\n" % (
                         self.game.field.round, score, depth, total_nodes / (self.game.field.round + 1),
-                         self.game.last_timebank - elapsed * 1000, self.game.rounds_left))
+                        self.game.last_timebank - elapsed * 1000, self.game.rounds_left))
             else:
                 sys.stderr.write("Score is None\n")
             sys.stderr.flush()
@@ -82,20 +82,21 @@ class BotMinimax(object):
         best_score = None
         best_move = None
         best_depth = i
+        best_path = []
         while True:
             current_time = time.time()
             available_time = self.game.get_available_time_per_turn()
             if current_time - start_time > available_time:
                 break
 
-            score = 0
-            score, move, best_path = self.search_root(self.game.field, i, self.game.my_botid,
-                                                      -float('inf'),
-                                                      float('inf'), only_me=only_me)
+            score, move, path = self.search_root(self.game.field, i, self.game.my_botid,
+                                                 -float('inf'),
+                                                 float('inf'), only_me=only_me, priority=best_path)
             if move is not None:
                 best_score = score
                 best_move = move
                 best_depth = i
+                best_path = path
             if best_move == 'pass':
                 break
             if score == float('inf') or score == -float('inf'):
@@ -105,23 +106,34 @@ class BotMinimax(object):
             i += 1
         return best_score, best_move, best_depth
 
-    def search_root(self, field, depth, player_id, alpha, beta, only_me):
+    def search_root(self, field, depth, player_id, alpha, beta, only_me, priority):
+        priority_move = None
+        search_path = priority[:]
+        if len(search_path) > 0:
+            priority_move = search_path.pop(0)
+
         child_fields, directions = self.get_child_fields(field, player_id)
+        child_fields, directions = self.sort_moves(child_fields, directions, player_id,
+                                                   calculate_distance=False, priority=priority_move, only_me=only_me)
         scores = []
-        best_score = -float('inf')
+        best_score = alpha
         best_path = None
         best_move = None
+        i = 0
         for child_field, direction in zip(child_fields, directions):
-            score, path = self.alpha_beta(child_field, depth - 1, player_id ^ 1, -beta, -alpha, [direction], only_me,
-                                          [])
+            # current_path = search_path if i == 0 else []
+            score, path = self.alpha_beta(child_field, depth - 1, player_id ^ 1, -beta, -best_score, [direction],
+                                          only_me,
+                                          search_path)
             if score is None:
-                return None,None,None
+                return None, None, None
             score = score if only_me else -score
             scores.append(score)
             if score > best_score:
                 best_score = score
                 best_move = direction
                 best_path = path
+            i += 1
         return best_score, best_move, best_path
 
     def alpha_beta(self, field, depth, player_id, alpha, beta, move_history, only_me, search_path):
@@ -233,121 +245,3 @@ class BotMinimax(object):
             print('wart')
         field.score = score
         return score
-
-        # def pv_search(self, field, depth, player_id, alpha, beta, move_history, only_me, search_path):
-        #     global total_nodes
-        #     global cached
-        #     total_nodes += 1
-        #     pruned = False
-        #     # field_hash = hash(str(field))
-        #     # if field_hash in self.cache:
-        #     #     cached+=1
-        #     #     return self.cache[field_hash]
-        #
-        #     moves = field.legal_moves(player_id)
-        #     elapsed_time = time.time() - start_time
-        #     if depth == 0 or len(moves) == 0:
-        #         my_player = field.players[0]
-        #         enemy_player = field.players[1]
-        #
-        #         distance = 0
-        #         half_step = False if only_me else player_id != self.game.my_botid
-        #         score = self.evaluate(field, only_me, half_step)
-        #         # self.cache[field_hash] = (
-        #         #     score, move_history + ['pass'] if len(moves) == 0 else move_history, distance, False)
-        #         # return self.cache[field_hash]
-        #         return score, move_history + ['pass'] if len(moves) == 0 else move_history, distance, False
-        #
-        #     if elapsed_time > self.game.get_available_time_per_turn():
-        #         return None, None, None, None
-        #
-        #     priority_move = None
-        #     search_path = search_path[:]
-        #     if len(search_path) > 0:
-        #         priority_move = search_path.pop(0)
-        #
-        #     child_fields, directions = self.get_child_fields(field, player_id)
-        #     child_fields, directions = self.sort_moves(child_fields, directions, player_id,
-        #                                                calculate_distance=True, priority=priority_move, only_me=only_me)
-        #
-        #     if player_id == 0:
-        #         best_value = -float("inf")
-        #         best_history = move_history
-        #         best_distance = float("inf")
-        #         for i, child_field in enumerate(child_fields):
-        #             if i == 0:
-        #                 v, node_history, distance, child_pruned = self.pv_search(child_field, depth - 1,
-        #                                                                          player_id if only_me else player_id ^ 1,
-        #                                                                          alpha, beta,
-        #                                                                          move_history, only_me, search_path)
-        #             else:
-        #                 v, node_history, distance, child_pruned = self.pv_search(child_field, depth - 1,
-        #                                                                          player_id if only_me else player_id ^ 1,
-        #                                                                          alpha, alpha + 1,
-        #                                                                          move_history, only_me, search_path)
-        #                 if v is None:
-        #                     return None, None, None, None
-        #                 if alpha < v < beta:
-        #                     v, node_history, distance, child_pruned = self.pv_search(child_field, depth - 1,
-        #                                                                              player_id if only_me else player_id ^ 1,
-        #                                                                              v, beta,
-        #                                                                              move_history, only_me, search_path)
-        #
-        #             if v is None:
-        #                 return None, None, None, None
-        #             # if not child_pruned:
-        #             if v > best_value or self.is_better_equal(v, node_history, distance, best_value, best_history,
-        #                                                       best_distance):
-        #                 best_value = v
-        #                 best_history = [directions[i]] + node_history
-        #                 best_distance = distance
-        #             alpha = max(alpha, best_value)
-        #             if beta <= alpha:
-        #                 pruned = False
-        #                 break
-        #     else:
-        #         best_value = float("inf")
-        #         best_history = move_history
-        #         best_distance = float("inf")
-        #         for i, child_field in enumerate(child_fields):
-        #             if i == 0:
-        #                 v, node_history, distance, child_pruned = self.pv_search(child_field, depth - 1,
-        #                                                                          player_id if only_me else player_id ^ 1,
-        #                                                                          alpha, beta,
-        #                                                                          move_history, only_me, search_path)
-        #             else:
-        #                 v, node_history, distance, child_pruned = self.pv_search(child_field, depth - 1,
-        #                                                                          player_id if only_me else player_id ^ 1,
-        #                                                                          alpha, alpha + 1,
-        #                                                                          move_history, only_me, search_path)
-        #                 if v is None:
-        #                     return None, None, None, None
-        #                 if alpha < v < beta:
-        #                     v, node_history, distance, child_pruned = self.pv_search(child_field, depth - 1,
-        #                                                                              player_id if only_me else player_id ^ 1,
-        #                                                                              v, beta,
-        #                                                                              move_history, only_me, search_path)
-        #             if v is None:
-        #                 return None, None, None, None
-        #             # if not child_pruned:
-        #             if v < best_value or self.is_better_equal(v, node_history, distance, best_value, best_history,
-        #                                                       best_distance):
-        #                 best_value = v
-        #                 best_history = [directions[i]] + node_history
-        #                 best_distance = distance
-        #             beta = min(beta, best_value)
-        #             if beta <= alpha:
-        #                 pruned = False
-        #                 break
-        #     # self.cache[field_hash] = (best_value, best_history, best_distance, pruned)
-        #     # return self.cache[field_hash]
-        #     return best_value, best_history, best_distance, pruned
-        #
-        # def quiesce(self, field, alpha, beta, only_me, player_id):
-        #     stand_pat = self.evaluate(field, only_me, player_id)
-        #     stand_pat = -stand_pat if player_id == 1 else stand_pat
-        #     if stand_pat >= beta:
-        #         return beta
-        #     if alpha < stand_pat:
-        #         alpha = stand_pat
-        #     return alpha
