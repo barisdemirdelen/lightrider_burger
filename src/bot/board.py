@@ -1,4 +1,5 @@
 import sys
+from array import array
 from collections import defaultdict
 from heapq import heappush, heappop, _siftdown
 
@@ -15,6 +16,9 @@ DIRS = [
     ((1, 0), 'down'),
     ((0, -1), 'left')
 ]
+
+board_size = 16
+
 
 class Board(object):
     def __init__(self):
@@ -38,7 +42,7 @@ class Board(object):
 
     def create_board(self, coord1=None):
         self.initialized = True
-        self.cell = [[EMPTY for col in range(0, self.width)] for row in range(0, self.height)]
+        self.cell = [EMPTY for _ in range(0, self.width * self.height)]
         if coord1 is None:
             self.players[0].row = 7
             self.players[0].col = 3
@@ -49,8 +53,8 @@ class Board(object):
             self.players[0].col = coord1[1]
             self.players[1].row = coord1[0]
             self.players[1].col = self.width - coord1[1] - 1
-        self.cell[self.players[0].row][self.players[0].col] = 0
-        self.cell[self.players[1].row][self.players[1].col] = 1
+        self.cell[self.players[0].row * board_size + self.players[0].col] = 0
+        self.cell[self.players[1].row * board_size + self.players[1].col] = 1
 
     @staticmethod
     def parse_cell_char(players, row, col, char):
@@ -79,31 +83,32 @@ class Board(object):
             if col >= self.width:
                 col = 0
                 row += 1
-            self.cell[row][col] = self.parse_cell(players, row, col, cell)
+            self.cell[row * 16 + col] = self.parse_cell(players, row, col, cell)
             col += 1
 
     def in_bounds(self, row, col):
         return 0 <= row < self.height and 0 <= col < self.width
 
     def is_legal(self, row, col, player_id=0):
-        return (self.in_bounds(row, col)) and (self.cell[row][col] == EMPTY or self.cell[row][col] == 4 + player_id)
+        return (self.in_bounds(row, col)) and (
+            self.cell[row * board_size + col] == EMPTY or self.cell[row * board_size + col] == 4 + player_id)
 
     def is_legal_with_players(self, row, col, player_id):
-        return (self.in_bounds(row, col)) and (self.cell[row][col] == EMPTY or
-                                               self.cell[row][col] == PLAYER1 or
-                                               self.cell[row][col] == PLAYER2 or
-                                               self.cell[row][col] == 4 + player_id)
+        return (self.in_bounds(row, col)) and (self.cell[row * board_size + col] == EMPTY or
+                                               self.cell[row * board_size + col] == PLAYER1 or
+                                               self.cell[row * board_size + col] == PLAYER2 or
+                                               self.cell[row * board_size + col] == 4 + player_id)
 
     def get_adjacent(self, row, col):
         l1, l2, l3, l4 = None, None, None, None
 
-        if 0 <= row - 1 < 16 and 0 <= col < 16 and self.cell[row - 1][col] == EMPTY:
+        if 0 <= row - 1 < 16 and 0 <= col < 16 and self.cell[(row - 1) * 16 + col] == EMPTY:
             l1 = (row - 1, col)
-        if 0 <= row < 16 and 0 <= col + 1 < 16 and self.cell[row][col + 1] == EMPTY:
+        if 0 <= row < 16 and 0 <= col + 1 < 16 and self.cell[row * 16 + col + 1] == EMPTY:
             l2 = (row, col + 1)
-        if 0 <= row + 1 < 16 and 0 <= col < 16 and self.cell[row + 1][col] == EMPTY:
+        if 0 <= row + 1 < 16 and 0 <= col < 16 and self.cell[(row + 1) * 16 + col] == EMPTY:
             l3 = (row + 1, col)
-        if 0 <= row < 16 and 0 <= col - 1 < 16 and self.cell[row][col - 1] == EMPTY:
+        if 0 <= row < 16 and 0 <= col - 1 < 16 and self.cell[row * 16 + col - 1] == EMPTY:
             l4 = (row, col - 1)
 
         result = {l1, l2, l3, l4}
@@ -237,7 +242,7 @@ class Board(object):
         field = Board()
         field.width = self.width
         field.height = self.height
-        field.cell = [row[:] for row in self.cell]
+        field.cell = self.cell[:]
         field.round = self.round
         field.initialized = self.initialized
         field.distance_cache = self.distance_cache
@@ -329,16 +334,16 @@ class Board(object):
 
         for prevent_from in prevent_p1.keys():
             for prevent_to in prevent_p1[prevent_from]:
-                field.cell[prevent_from[0]][prevent_from[1]] = 4
-                field.cell[prevent_to[0]][prevent_to[1]] = 5
+                field.cell[prevent_from[0] * board_size + prevent_from[1]] = 4
+                field.cell[prevent_to[0] * board_size + prevent_to[1]] = 5
 
         for prevent_from in prevent_p2.keys():
             for prevent_to in prevent_p2[prevent_from]:
-                field.cell[prevent_from[0]][prevent_from[1]] = 5
-                field.cell[prevent_to[0]][prevent_to[1]] = 4
+                field.cell[prevent_from[0] * board_size + prevent_from[1]] = 5
+                field.cell[prevent_to[0] * board_size + prevent_to[1]] = 4
 
-        field.cell[field.players[0].row][field.players[0].col] = 0
-        field.cell[field.players[1].row][field.players[1].col] = 1
+        field.cell[field.players[0].row * board_size + field.players[0].col] = 0
+        field.cell[field.players[1].row * board_size + field.players[1].col] = 1
 
         return field
 
@@ -367,7 +372,7 @@ class Board(object):
                 # field.cell[c2[0]][c2[1]] = 5
             else:
                 c = path[(len(path) - 1) // 2]
-                field.cell[c[0]][c[1]] = BLOCKED
+                field.cell[c[0] * board_size + c[1]] = BLOCKED
         return field, prevent
 
     def set_cell(self, cell):
@@ -396,8 +401,8 @@ class Board(object):
         moves = self.legal_moves(next_player_id)
         for move in moves:
             child_field = self.get_copy()
-            child_field.cell[move[0][0]][move[0][1]] = next_player_id
-            child_field.cell[next_player.row][next_player.col] = BLOCKED
+            child_field.cell[move[0][0] * board_size + move[0][1]] = next_player_id
+            child_field.cell[next_player.row * board_size + next_player.col] = BLOCKED
             child_field.players[next_player_id].row, child_field.players[next_player_id].col = move[0]
             child_fields.append(child_field)
             directions.append(move[1])
@@ -455,5 +460,7 @@ class Board(object):
 
     def get_search_hash(self):
         if self.hash is None:
-            self.hash = hash(str(self.cell))
+            self.hash = str(self.cell)
         return self.hash
+
+        # def get_cell_coord(self, coord):

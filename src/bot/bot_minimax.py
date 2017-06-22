@@ -20,6 +20,7 @@ class BotMinimax(object):
         self.last_path = []
         self.last_only_me = False
         self.T = []
+        self.depth_times = []
 
     def setup(self, game):
         self.game = game
@@ -29,6 +30,7 @@ class BotMinimax(object):
 
     def do_turn(self):
         global start_time
+        self.depth_times = []
         self.game.last_order = None
         score = None
         start_time = time.time()
@@ -83,9 +85,9 @@ class BotMinimax(object):
 
             if score is not None:
                 sys.stderr.write(
-                    "Round: %d, Score: %.4f, Depth: %.1f, Nodes: %.4f, Time: %d, RoundsLeft: %d, Cached: %d\n" % (
+                    "Round: %d, Score: %.4f, Depth: %.1f, Nodes: %.4f, Time: %d, RoundsLeft: %d, Cached: %d, Depth times: %s\n" % (
                         self.game.field.round, score, depth, total_nodes / (self.game.field.round + 1),
-                        self.game.last_timebank - elapsed * 1000, self.game.rounds_left, cached))
+                        self.game.last_timebank - elapsed * 1000, self.game.rounds_left, cached, str(self.depth_times)))
             else:
                 sys.stderr.write("Score is None\n")
             sys.stderr.flush()
@@ -105,12 +107,9 @@ class BotMinimax(object):
         best_move = None
         best_depth = i
         best_path = []
+        available_time = self.game.get_available_time_per_turn()
         while True:
-            current_time = time.time()
-            available_time = self.game.get_available_time_per_turn()
-            if current_time - start_time > available_time:
-                break
-
+            current_depth_start_time = time.time()
             score, path = self.alpha_beta(self.game.field, i, self.game.my_botid,
                                           -float('inf'),
                                           float('inf'), move_history=[], only_me=only_me, search_path=best_path)
@@ -123,11 +122,16 @@ class BotMinimax(object):
                 break
             if score == float('inf') or score == -float('inf'):
                 break
-            if best_path is None or best_path[-1] == 'pass' or len(best_path) < i:
+            if best_path is None or best_path[-1] == 'pass':
                 break
             if i > self.game.rounds_left * 2:
                 break
+            current_time = time.time()
+            if current_time - start_time > available_time:
+                break
             i += 1
+            self.depth_times.append('%.2f' % ((current_time - current_depth_start_time) * 1000.0))
+        self.depth_times.append('%.2f' % ((time.time() - current_depth_start_time) * 1000.0))
         return best_score, best_path, best_depth
 
     def alpha_beta(self, field, depth, player_id, alpha, beta, move_history, only_me, search_path):
@@ -141,7 +145,8 @@ class BotMinimax(object):
         if depth <= 0 or len(moves) == 0:
             half_step = False if only_me else player_id != self.game.my_botid
             score = self.evaluate(field, only_me, half_step)
-            return score if player_id == 0 or only_me else -score, move_history + ['pass'] if len(
+            return score if player_id == 0 or (only_me and self.game.my_botid == 0) else -score, move_history + [
+                'pass'] if len(
                 moves) == 0 else move_history
 
         if elapsed_time > self.game.get_available_time_per_turn():
@@ -211,7 +216,7 @@ class BotMinimax(object):
                         node_history = self.histories[child_hash]
                         cached += 1
                 if not get_score_from_cache:
-                    next_depth = 0
+                    next_depth = depth - 4
                     score, node_history = self.alpha_beta(child_field, next_depth,
                                                           player_id if only_me else player_id ^ 1,
                                                           -alpha - 1, -alpha,
@@ -221,7 +226,7 @@ class BotMinimax(object):
                         return None, None
                     score = score if only_me else -score
                     if beta > score > alpha:
-                        next_depth = depth -1
+                        next_depth = depth - 1
                         score, node_history = self.alpha_beta(child_field, next_depth,
                                                               player_id if only_me else player_id ^ 1,
                                                               -beta, -alpha,
@@ -270,16 +275,18 @@ class BotMinimax(object):
     def evaluate(self, field, only_me, half_step):
         if field.score is not None:
             return field.score
+
+        field.depth = field.round - self.game.field.round
         my_player = field.players[0]
         enemy_player = field.players[1]
 
         if only_me:
             if self.game.my_botid == 0:
-                my_score = field.total_area(my_player.coord, player_id=self.game.my_botid)
+                my_score = field.total_area(my_player.coord, player_id=self.game.my_botid) + field.depth
                 enemy_score = 0
             else:
                 my_score = 0
-                enemy_score = field.total_area(enemy_player.coord, player_id=self.game.my_botid)
+                enemy_score = field.total_area(enemy_player.coord, player_id=self.game.my_botid) + field.depth
         else:
             p1_extra = 0
             p2_extra = 0
@@ -303,7 +310,6 @@ class BotMinimax(object):
         if field.score is not None and field.score != score:
             print('wart')
         field.score = score
-        field.depth = field.round - self.game.field.round
         return score
 
     @staticmethod
@@ -314,8 +320,8 @@ class BotMinimax(object):
         moves = field.legal_moves(next_player_id)
         for move in moves:
             child_field = field.get_copy()
-            child_field.cell[move[0][0]][move[0][1]] = next_player_id
-            child_field.cell[next_player.row][next_player.col] = BLOCKED
+            child_field.cell[move[0][0] * 16 + move[0][1]] = next_player_id
+            child_field.cell[next_player.row * 16 + next_player.col] = BLOCKED
             child_field.players[next_player_id].row, child_field.players[next_player_id].col = move[0]
             child_field.round += 1
             child_fields.append(child_field)
