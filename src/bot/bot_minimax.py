@@ -120,7 +120,7 @@ class BotMinimax(object):
                 best_path = path
             if best_move == 'pass':
                 break
-            if score == float('inf') or score == -float('inf'):
+            if score is None or score >= 999 or score <= -999:
                 break
             if best_path is None or best_path[-1] == 'pass':
                 break
@@ -129,9 +129,13 @@ class BotMinimax(object):
             current_time = time.time()
             if current_time - start_time > available_time:
                 break
+            depth_time = (current_time - current_depth_start_time) * 1000.0
+            time_left = (available_time - current_time + start_time) * 1000
+            self.depth_times.append('%.2f' % depth_time)
+            if depth_time * 0.9> time_left:
+                break
             i += 1
-            self.depth_times.append('%.2f' % ((current_time - current_depth_start_time) * 1000.0))
-        self.depth_times.append('%.2f' % ((time.time() - current_depth_start_time) * 1000.0))
+            self.depth_times.append('%.2f' % ((time.time() - current_depth_start_time) * 1000.0))
         return best_score, best_path, best_depth
 
     def alpha_beta(self, field, depth, player_id, alpha, beta, move_history, only_me, search_path):
@@ -149,7 +153,8 @@ class BotMinimax(object):
                 'pass'] if len(
                 moves) == 0 else move_history
 
-        if elapsed_time > self.game.get_available_time_per_turn():
+        if elapsed_time > self.game.last_timebank * 0.9 / 1000:
+            sys.stderr.write('We are on limit at time\n')
             return None, None
 
         priority_move = None
@@ -172,7 +177,7 @@ class BotMinimax(object):
         alpha_history = move_history
         best_score = 0
         next_depth = depth - 1
-        score = -float('inf')
+        score = -1999
         for i, child_field in enumerate(child_fields):
             if i == 0:
                 get_score_from_cache = False
@@ -303,9 +308,9 @@ class BotMinimax(object):
                     my_score -= 1
             if my_score != 0 or enemy_score != 0:
                 if my_score == 0:
-                    my_score = -float('inf')
+                    my_score = -999
                 elif enemy_score == 0:
-                    enemy_score = -float('inf')
+                    enemy_score = -999
         score = my_score - enemy_score
         if field.score is not None and field.score != score:
             print('wart')
