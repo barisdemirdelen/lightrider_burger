@@ -376,10 +376,11 @@ class Board(object):
         return field, prevent
 
     def set_cell(self, cell):
-        self.cell = cell
+        self.create_board()
         for row in range(len(cell)):
             for col in range(len(cell[row])):
-                if self.cell[row][col] == PLAYER1:
+                self.cell[row * len(cell), col] = cell[row][col]
+                if self.cell[row * len(cell), col] == PLAYER1:
                     self.players[PLAYER1].row, self.players[PLAYER1].col = row, col
                 elif self.cell[row][col] == PLAYER2:
                     self.players[PLAYER2].row, self.players[PLAYER2].col = row, col
@@ -427,6 +428,16 @@ class Board(object):
 
         return p1_score, p2_score
 
+    def block_unreachable(self, playerid):
+        p1_coord = self.players[playerid].coord
+        p2_coord = self.players[1].coord
+        dijkstra1, _ = self.dijkstra(p1_coord)
+
+        for row in range(self.height):
+            for col in range(self.width):
+                if dijkstra1[(row, col)] == float('inf'):
+                    self.cell[row * self.height + col] = BLOCKED
+
     def dijkstra(self, start):
         """Returns a map of nodes to distance from start and a map of nodes to
         the neighbouring node that is closest to start."""
@@ -460,7 +471,7 @@ class Board(object):
 
     def get_search_hash(self):
         if self.hash is None:
-            self.hash = str(self.cell)
+            self.hash = hash(str(self.cell))
         return self.hash
 
         # def get_cell_coord(self, coord):

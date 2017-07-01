@@ -111,9 +111,9 @@ class FakeEngine(object):
             return True
 
         for i, player_coord in enumerate(self.field.players):
-            self.field.cell[player_coord.row][player_coord.col] = BLOCKED
+            self.field.cell[player_coord.row * self.field.height + player_coord.col] = BLOCKED
             player_coord.row, player_coord.col = move_coords[i][0], move_coords[i][1]
-            self.field.cell[player_coord.row][player_coord.col] = i
+            self.field.cell[player_coord.row * self.field.height + player_coord.col] = i
             # for player in self.players:
             # player.game.field.cell[player_coord.row][player_coord.col] = BLOCKED
             # player.game.field.players[i].row, player.game.field.players[i].col = move_coords[i][0], move_coords[i][
@@ -180,7 +180,7 @@ class FakeEngine(object):
             return True
 
         player_coord = self.field.players[player_id]
-        self.field.cell[player_coord.row][player_coord.col] = BLOCKED
+        self.field.cell[player_coord.row * self.field.height + player_coord.col] = BLOCKED
         player_coord.row, player_coord.col = move_coords[0], move_coords[1]
-        self.field.cell[player_coord.row][player_coord.col] = player_id
+        self.field.cell[player_coord.row * self.field.height + player_coord.col] = player_id
         return False

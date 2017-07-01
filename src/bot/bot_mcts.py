@@ -103,9 +103,9 @@ class BotMCTS(object):
 
     def make_move(self, field, action, player_id):
         new_field = field.get_copy()
-        new_field.cell[action[0][0]][action[0][1]] = 0
+        new_field.cell[action[0][0] * new_field.height + action[0][1]] = 0
         # new_field.cell[action[1][0][0]][action[1][0][1]] = 1
-        new_field.cell[new_field.players[player_id].row][new_field.players[player_id].col] = BLOCKED
+        new_field.cell[new_field.players[player_id].row * new_field.height + new_field.players[player_id].col] = BLOCKED
         # new_field.cell[new_field.players[1].row][new_field.players[1].col] = BLOCKED
         new_field.players[player_id].row, new_field.players[player_id].col = action[0]
         # new_field.players[1].row, new_field.players[1].col = action[1][0]

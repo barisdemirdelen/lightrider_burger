@@ -124,6 +124,7 @@ class BotNN2(object):
         p1 = self.game.field.players[0]
         p2 = self.game.field.players[1]
         cell_tensor = np.array(self.game.field.cell)
+        cell_tensor = np.reshape(cell_tensor, (self.game.field.height, self.game.field.width))
         cell_tensor = cell_tensor[np.newaxis, :, :, np.newaxis]
         empty_tensor = np.zeros((1, cell_tensor.shape[1], cell_tensor.shape[2], 2))
         cell_tensor = np.concatenate((cell_tensor, empty_tensor), axis=3)

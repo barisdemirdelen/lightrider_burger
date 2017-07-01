@@ -100,3 +100,19 @@ class TestBoard(unittest.TestCase):
         ]
         self.assertEqual(blocked1, 8)
         self.assertEqual(blocked2, 13)
+
+    def test_block_unreachable(self):
+        self.board.set_cell([
+            [2, 2, 2, 3, 2],
+            [0, 3, 3, 2, 2],
+            [3, 3, 1, 3, 2],
+            [2, 2, 2, 2, 2],
+            [2, 2, 2, 2, 2]
+        ])
+
+        self.board.block_unreachable(0)
+        self.board.cell
+
+
+
+
