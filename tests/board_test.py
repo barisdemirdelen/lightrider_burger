@@ -111,7 +111,6 @@ class TestBoard(unittest.TestCase):
         ])
 
         self.board.block_unreachable(0)
-        self.board.cell
 
 
 

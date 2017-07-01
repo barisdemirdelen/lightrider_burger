@@ -40,9 +40,12 @@ class Board(object):
         self.search_score = 0
         self.hash = None
 
-    def create_board(self, coord1=None):
+    def create_board(self, coord1=None, height=None):
         self.initialized = True
-        self.cell = [EMPTY for _ in range(0, self.width * self.height)]
+        if height:
+            self.width = height
+            self.height = height
+        self.cell = [EMPTY for _ in range(0, self.height * self.width)]
         if coord1 is None:
             self.players[0].row = 7
             self.players[0].col = 3
@@ -53,8 +56,8 @@ class Board(object):
             self.players[0].col = coord1[1]
             self.players[1].row = coord1[0]
             self.players[1].col = self.width - coord1[1] - 1
-        self.cell[self.players[0].row * board_size + self.players[0].col] = 0
-        self.cell[self.players[1].row * board_size + self.players[1].col] = 1
+        self.cell[self.players[0].row * self.height + self.players[0].col] = 0
+        self.cell[self.players[1].row * self.height + self.players[1].col] = 1
 
     @staticmethod
     def parse_cell_char(players, row, col, char):
@@ -91,24 +94,24 @@ class Board(object):
 
     def is_legal(self, row, col, player_id=0):
         return (self.in_bounds(row, col)) and (
-            self.cell[row * board_size + col] == EMPTY or self.cell[row * board_size + col] == 4 + player_id)
+            self.cell[row * self.height + col] == EMPTY or self.cell[row * self.height + col] == 4 + player_id)
 
     def is_legal_with_players(self, row, col, player_id):
-        return (self.in_bounds(row, col)) and (self.cell[row * board_size + col] == EMPTY or
-                                               self.cell[row * board_size + col] == PLAYER1 or
-                                               self.cell[row * board_size + col] == PLAYER2 or
-                                               self.cell[row * board_size + col] == 4 + player_id)
+        return (self.in_bounds(row, col)) and (self.cell[row * self.height + col] == EMPTY or
+                                               self.cell[row * self.height + col] == PLAYER1 or
+                                               self.cell[row * self.height + col] == PLAYER2 or
+                                               self.cell[row * self.height + col] == 4 + player_id)
 
     def get_adjacent(self, row, col):
         l1, l2, l3, l4 = None, None, None, None
 
-        if 0 <= row - 1 < 16 and 0 <= col < 16 and self.cell[(row - 1) * 16 + col] == EMPTY:
+        if 0 <= row - 1 < self.height and 0 <= col < self.width  and self.cell[(row - 1) * self.height + col] == EMPTY:
             l1 = (row - 1, col)
-        if 0 <= row < 16 and 0 <= col + 1 < 16 and self.cell[row * 16 + col + 1] == EMPTY:
+        if 0 <= row < self.height  and 0 <= col + 1 < self.width and self.cell[row * self.height + col + 1] == EMPTY:
             l2 = (row, col + 1)
-        if 0 <= row + 1 < 16 and 0 <= col < 16 and self.cell[(row + 1) * 16 + col] == EMPTY:
+        if 0 <= row + 1 < self.height  and 0 <= col < self.width and self.cell[(row + 1) * self.height + col] == EMPTY:
             l3 = (row + 1, col)
-        if 0 <= row < 16 and 0 <= col - 1 < 16 and self.cell[row * 16 + col - 1] == EMPTY:
+        if 0 <= row < self.height  and 0 <= col - 1 < self.width and self.cell[row * self.height + col - 1] == EMPTY:
             l4 = (row, col - 1)
 
         result = {l1, l2, l3, l4}
@@ -376,13 +379,13 @@ class Board(object):
         return field, prevent
 
     def set_cell(self, cell):
-        self.create_board()
+        self.create_board(coord1=(0, 0), height=len(cell))
         for row in range(len(cell)):
             for col in range(len(cell[row])):
-                self.cell[row * len(cell), col] = cell[row][col]
-                if self.cell[row * len(cell), col] == PLAYER1:
+                self.cell[row * len(cell) + col] = cell[row][col]
+                if self.cell[row * len(cell) + col] == PLAYER1:
                     self.players[PLAYER1].row, self.players[PLAYER1].col = row, col
-                elif self.cell[row][col] == PLAYER2:
+                elif self.cell[row * len(cell) + col] == PLAYER2:
                     self.players[PLAYER2].row, self.players[PLAYER2].col = row, col
         self.width = len(cell)
         self.height = len(cell[0])
@@ -452,6 +455,33 @@ class Board(object):
             min_node = heappop(unvisited)[1]
 
             neighbours = self.get_adjacent(*min_node)
+            for neighbour in neighbours:
+                d = tdist[min_node] + 1
+                if neighbour not in visited:
+                    if tdist[neighbour] > d:
+                        preceding_node[neighbour] = min_node
+                        heappush(unvisited, (d, neighbour))
+                        tdist[neighbour] = d
+                    visited.add(neighbour)
+
+        return tdist, preceding_node
+
+    def dijkstra_without_dead_ends(self, start):
+        """Returns a map of nodes to distance from start and a map of nodes to
+        the neighbouring node that is closest to start."""
+        tdist = defaultdict(lambda: float('inf'))
+        tdist[start] = 0
+        preceding_node = {}
+        unvisited = []
+        visited = {start}
+        heappush(unvisited, (0, start))
+
+        while len(unvisited) > 0:
+            min_node = heappop(unvisited)[1]
+
+            neighbours = self.get_adjacent(*min_node)
+            if len(neighbours) <= 2:
+                continue
             for neighbour in neighbours:
                 d = tdist[min_node] + 1
                 if neighbour not in visited:
