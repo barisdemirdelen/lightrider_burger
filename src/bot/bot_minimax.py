@@ -4,6 +4,7 @@ import time
 
 from bot.board import BLOCKED
 
+
 class BotMinimax(object):
     def __init__(self):
         self.game = None
@@ -87,7 +88,8 @@ class BotMinimax(object):
                 sys.stderr.write(
                     "Round: %d, Score: %.4f, Depth: %.1f, Nodes: %.4f, Time: %d, RoundsLeft: %d, Cached: %d, Depth times: %s\n" % (
                         self.game.field.round, score, depth, self.total_nodes,
-                        self.game.last_timebank - elapsed * 1000, self.game.rounds_left, self.cached, str(self.depth_times)))
+                        self.game.last_timebank - elapsed * 1000, self.game.rounds_left, self.cached,
+                        str(self.depth_times)))
             else:
                 sys.stderr.write("Score is None\n")
             sys.stderr.flush()
@@ -130,7 +132,7 @@ class BotMinimax(object):
             depth_time = (current_time - current_depth_start_time) * 1000.0
             time_left = (available_time - current_time + self.start_time) * 1000
             self.depth_times.append('%.2f' % depth_time)
-            if depth_time * 0.9> time_left:
+            if depth_time * 0.9 > time_left:
                 break
             i += 1
             self.depth_times.append('%.2f' % ((time.time() - current_depth_start_time) * 1000.0))
@@ -150,7 +152,7 @@ class BotMinimax(object):
                 'pass'] if len(
                 moves) == 0 else move_history
 
-        if elapsed_time > self.game.last_timebank * 0.9 / 1000:
+        if float(elapsed_time) > self.game.last_timebank * 0.9 / 1000:
             sys.stderr.write('We are on limit at time\n')
             return None, None
 
@@ -298,7 +300,14 @@ class BotMinimax(object):
                 else:
                     p2_extra = 1
             my_score, enemy_score = field.block_middle_score(p1_extra, p2_extra)
-            # my_score, enemy_score = field.total_area(my_player.coord), field.total_area(enemy_player.coord),
+            # my_score, enemy_score = 100,100
+            # my_score2 = -abs(my_player.coord[0] - field.height / 2 + 0.5) - abs(
+            #     my_player.coord[1] - field.width / 2 + 0.5)
+            # enemy_score2 = -abs(enemy_player.coord[0] - field.height / 2 + 0.5) - abs(
+            #     enemy_player.coord[1] - field.width / 2 + 0.5)
+            # # my_score2, enemy_score2 = field.total_area(my_player.coord), field.total_area(enemy_player.coord)
+            # my_score += 10*my_score2
+            # enemy_score += 10*enemy_score2
             # my_score, enemy_score = 10,10
             if half_step:
                 if self.game.my_botid == 0:
@@ -332,44 +341,3 @@ class BotMinimax(object):
             directions.append(move[1])
 
         return child_fields, directions
-
-
-        # def zw_search(self, field, depth, player_id, beta, move_history, only_me, search_path):
-        #     global total_nodes
-        #     total_nodes += 1
-        #     if only_me:
-        #         beta = -beta
-        #
-        #     moves = field.legal_moves(player_id)
-        #     elapsed_time = time.time() - start_time
-        #     if depth == 0 or len(moves) == 0:
-        #         half_step = False if only_me else player_id != self.game.my_botid
-        #         score = self.evaluate(field, only_me, half_step)
-        #         return score if player_id == 0 or only_me else -score, move_history + ['pass'] if len(
-        #             moves) == 0 else move_history
-        #
-        #     if elapsed_time > self.game.get_available_time_per_turn():
-        #         return None, None
-        #
-        #     priority_move = None
-        #     search_path = search_path[:]
-        #     if len(search_path) > 0:
-        #         priority_move = search_path.pop(0)
-        #     child_fields, directions = self.get_child_fields(field, player_id)
-        #     child_fields, directions = self.sort_moves(child_fields, directions, player_id,
-        #                                                calculate_distance=False, priority=priority_move, only_me=only_me)
-        #
-        #     i = 0
-        #     node_history = []
-        #     for i, child_field in enumerate(child_fields):
-        #         score, node_history = self.zw_search(child_field, depth - 1, player_id if only_me else player_id ^ 1,
-        #                                              1 - beta,
-        #                                              move_history,
-        #                                              only_me, search_path)
-        #         if score is None:
-        #             return None, None
-        #         score = score if only_me else -score
-        #
-        #         if score >= beta:
-        #             return beta, node_history
-        #     return beta - 1, [directions[i]] + node_history

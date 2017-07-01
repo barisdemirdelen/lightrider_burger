@@ -105,13 +105,13 @@ class Board(object):
     def get_adjacent(self, row, col):
         l1, l2, l3, l4 = None, None, None, None
 
-        if 0 <= row - 1 < self.height and 0 <= col < self.width  and self.cell[(row - 1) * self.height + col] == EMPTY:
+        if 0 <= row - 1 < self.height and 0 <= col < self.width and self.cell[(row - 1) * self.height + col] == EMPTY:
             l1 = (row - 1, col)
-        if 0 <= row < self.height  and 0 <= col + 1 < self.width and self.cell[row * self.height + col + 1] == EMPTY:
+        if 0 <= row < self.height and 0 <= col + 1 < self.width and self.cell[row * self.height + col + 1] == EMPTY:
             l2 = (row, col + 1)
-        if 0 <= row + 1 < self.height  and 0 <= col < self.width and self.cell[(row + 1) * self.height + col] == EMPTY:
+        if 0 <= row + 1 < self.height and 0 <= col < self.width and self.cell[(row + 1) * self.height + col] == EMPTY:
             l3 = (row + 1, col)
-        if 0 <= row < self.height  and 0 <= col - 1 < self.width and self.cell[row * self.height + col - 1] == EMPTY:
+        if 0 <= row < self.height and 0 <= col - 1 < self.width and self.cell[row * self.height + col - 1] == EMPTY:
             l4 = (row, col - 1)
 
         result = {l1, l2, l3, l4}
@@ -505,3 +505,13 @@ class Board(object):
         return self.hash
 
         # def get_cell_coord(self, coord):
+
+    def get_cell2d(self):
+        cell2d = []
+        for row in range(self.height):
+            current_row = []
+            for col in range(self.width):
+                current_row.append(self.cell[row * self.height + col])
+
+            cell2d.append(current_row)
+        return cell2d

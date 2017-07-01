@@ -37,7 +37,6 @@ class TestBoard(unittest.TestCase):
         self.assertEqual(blocked1, 6)
         self.assertEqual(blocked2, 10)
 
-
     def test_board_2(self):
         self.board.set_cell([
             [1, 2, 3, 2, 2],
@@ -110,8 +109,13 @@ class TestBoard(unittest.TestCase):
             [2, 2, 2, 2, 2]
         ])
 
+        real_blocked = [
+            [2, 2, 2, 3, 3],
+            [0, 3, 3, 3, 3],
+            [3, 3, 3, 3, 3],
+            [3, 3, 3, 3, 3],
+            [3, 3, 3, 3, 3]
+        ]
+
         self.board.block_unreachable(0)
-
-
-
-
+        self.assertEqual(self.board.get_cell2d(), real_blocked)
