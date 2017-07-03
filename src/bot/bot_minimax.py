@@ -150,8 +150,7 @@ class BotMinimax(object):
             score = -1001
             if len(moves) > 0:
                 half_step = False if only_me else player_id != self.game.my_botid
-                score = self.evaluate(field, only_me, half_step)
-                score = score if player_id == 0 or (only_me and self.game.my_botid == 0) else -score
+                score = self.evaluate(field, only_me, half_step, player_id)
             return score, move_history + [
                 'pass'] if len(
                 moves) == 0 else move_history
@@ -167,7 +166,7 @@ class BotMinimax(object):
 
         child_fields, directions = field.get_child_fields(player_id)
         child_fields, directions = self.sort_moves(child_fields, directions, player_id,
-                                                   calculate_distance=True, priority=priority_move, only_me=only_me)
+                                                   calculate_distance=False, priority=priority_move, only_me=only_me)
 
         best_score, alpha_history = self.aspiration_search_moves(child_fields, directions, depth, player_id, alpha,
                                                                  beta, move_history, only_me,
@@ -267,12 +266,12 @@ class BotMinimax(object):
         for field in fields:
             child_fields, _ = field.get_child_fields(next_player_id)
             children_counts.append(len(child_fields))
-            if calculate_distance and priority is None:
+            if calculate_distance:
                 half_step = False if only_me else next_player_id != self.game.my_botid
-                distance_score = 0
+                score = 0
                 if not half_step:
-                    distance_score = self.evaluate(field, only_me, half_step)
-                distances.append(distance_score if next_player_id == 1 else -distance_score)
+                    score = -self.evaluate(field, only_me, half_step, next_player_id)
+                distances.append(score)
             else:
                 distances.append(0)
 
@@ -285,9 +284,10 @@ class BotMinimax(object):
 
         return sorted_fields, sorted_directions
 
-    def evaluate(self, field, only_me, half_step):
+    def evaluate(self, field, only_me, half_step, player_id):
         if field.score is not None:
-            return field.score
+            score = field.score if player_id == 0 or (only_me and self.game.my_botid == 0) else -field.score
+            return score
 
         field.depth = field.round - self.game.field.round
         my_player = field.players[0]
@@ -304,11 +304,11 @@ class BotMinimax(object):
             p1_extra = 0
             p2_extra = 0
             if half_step:
-                print('Where does animals come from?')
-                # if self.game.my_botid == 0:
-                #     p1_extra = 1
-                # else:
-                #     p2_extra = 1
+                # print('Where does animals come from?')
+                if self.game.my_botid == 0:
+                    p1_extra = 1
+                else:
+                    p2_extra = 1
             my_score, enemy_score = field.block_middle_score(p1_extra, p2_extra)
             # my_score, enemy_score = 100,100
             # my_score2 = -abs(my_player.coord[0] - field.height / 2 + 0.5) - abs(
@@ -330,7 +330,6 @@ class BotMinimax(object):
                 elif enemy_score == 0:
                     enemy_score = -999
         score = my_score - enemy_score
-        if field.score is not None and field.score != score:
-            print('wart')
         field.score = score
+        score = score if player_id == 0 or (only_me and self.game.my_botid == 0) else -score
         return score

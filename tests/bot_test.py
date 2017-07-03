@@ -229,6 +229,7 @@ class TestBot(unittest.TestCase):
         message = 'settings your_botid 1\n' \
                   'action move 10\n' \
                   'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,0,.,.,.,.,.,x,.,.,.,.,.,.,.,.,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,.,x,.,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,x,x,x,x,x,.,1,x,.,.,.,.,.,.,.,x,x,.,x,x,x,x,.,x,.,.,.,.,.,.,.,x,x,.,x,x,.,x,.,x,.,.,.,.,.,x,x,x,x,.,.,.,.,x,.,x,.,.,.,.,x,x,.,x,x,.,.,.,.,x,.,x,.,.,x,x,x,.,.,x,x,x,.,.,.,x,.,x,x,x,x,.,.,.,.,.,.,x,x,x,.,x,.,x,x,.,.,.,.,.,.,.,.,.,.,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
+        self.game.update(message)
         self.bot.do_turn()
         self.assertEqual(self.game.last_order, 'down')
 
@@ -262,6 +263,19 @@ class TestBot(unittest.TestCase):
         self.bot.do_turn()
         self.assertEqual(self.game.last_order, 'up')
 
+    def test_tricky_turn(self):
+        message = 'settings your_botid 1\n' \
+                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,x,.,x,x,x,x,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,.,.,.,.,x,x,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,.,x,x,0,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,1,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
+        self.game.update(message)
+        self.bot.do_turn()
+        self.assertEqual(self.game.last_order, 'right')
+
+    def test_score_2(self):
+        message = 'settings your_botid 1\n' \
+                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,1,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,x,.,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,x,.,.,x,x,x,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,x,0,.,x,x,.,x,x,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
+        self.game.update(message)
+        score = self.bot.do_turn()
+        self.assertLess(score, 0)
 
 
         # def test_depth(self):
