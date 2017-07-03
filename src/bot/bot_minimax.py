@@ -184,7 +184,7 @@ class BotMinimax(object):
             if i == 0:
                 get_score_from_cache = False
                 if self.cache_nodes:
-                    child_hash = child_field.get_search_hash()
+                    child_hash = child_field.hash
                     if child_hash in self.cache:
                         if next_depth <= self.depths[child_hash]:
                             get_score_from_cache = True
@@ -214,7 +214,7 @@ class BotMinimax(object):
             else:
                 get_score_from_cache = False
                 if self.cache_nodes:
-                    child_hash = child_field.get_search_hash()
+                    child_hash = child_field.hash
                     if child_hash in self.cache:
                         if depth - 1 <= self.depths[child_hash]:
                             get_score_from_cache = True

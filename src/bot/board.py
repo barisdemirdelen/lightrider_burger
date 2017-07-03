@@ -1,3 +1,5 @@
+import os
+import random
 import sys
 from collections import defaultdict
 from heapq import heappush, heappop, _siftdown
@@ -39,9 +41,9 @@ class Board(object):
         self.search_score = 0
         self.hash = None
         self.adjacents = [None] * 256
+        self.hashtable = None
 
     def create_board(self, coord1=None, height=None):
-        self.initialized = True
         if height:
             self.width = height
             self.height = height
@@ -58,6 +60,8 @@ class Board(object):
             self.players[1].col = self.width - coord1[1] - 1
         self.cell[self.players[0].row * self.height + self.players[0].col] = 0
         self.cell[self.players[1].row * self.height + self.players[1].col] = 1
+        self.init_zobrist()
+        self.initialized = True
 
     @staticmethod
     def parse_cell_char(players, row, col, char):
@@ -262,6 +266,8 @@ class Board(object):
         field.players_seperated = self.players_seperated
         field.score = None
         field.adjacents = self.adjacents[:]
+        field.hashtable = self.hashtable
+        field.hash = self.hash
         field.players = [player.Player(), player.Player()]
         field.players[0].row, field.players[0].col, field.players[1].row, field.players[1].col = self.players[0].row, \
                                                                                                  self.players[0].col, \
@@ -411,16 +417,7 @@ class Board(object):
         moves = self.legal_moves(next_player_id)
         for move in moves:
             child_field = self.get_copy()
-            child_field.cell[move[0][0] * board_size + move[0][1]] = next_player_id
-            child_field.cell[next_player.row * board_size + next_player.col] = BLOCKED
-
-            adjacents = self.get_all_adjacent(next_player.row, next_player.col)
-            adjacents.update(self.get_all_adjacent(move[0][0], move[0][1]))
-            for adjacent in adjacents:
-                child_field.adjacents[adjacent[0] * board_size + adjacent[1]] = None
-
-            child_field.players[next_player_id].row, child_field.players[next_player_id].col = move[0]
-            child_field.round += 1
+            child_field.move(next_player_id, move[0])
             child_fields.append(child_field)
             directions.append(move[1])
 
@@ -481,12 +478,24 @@ class Board(object):
         heap[index] = (new_key, value)
         _siftdown(heap, 0, index)
 
-    def get_search_hash(self):
-        if self.hash is None:
-            self.hash = hash(str(self.cell))
-        return self.hash
+    def move(self, player_id, coord):
+        player = self.players[player_id]
+        self.cell[coord[0] * board_size + coord[1]] = player_id
+        self.cell[player.row * board_size + player.col] = BLOCKED
+        old_position = player.row * board_size + player.col
+        new_poisition = coord[0] * board_size + coord[1]
+        self.hash ^= self.hashtable[new_poisition][EMPTY]
+        self.hash ^= self.hashtable[new_poisition][player_id]
+        self.hash ^= self.hashtable[old_position][player_id]
+        self.hash ^= self.hashtable[old_position][BLOCKED]
 
-        # def get_cell_coord(self, coord):
+        adjacents = self.get_all_adjacent(player.row, player.col)
+        adjacents.update(self.get_all_adjacent(*coord))
+        for adjacent in adjacents:
+            self.adjacents[adjacent[0] * board_size + adjacent[1]] = None
+
+        self.players[player_id].row, self.players[player_id].col = coord
+        self.round += 1
 
     @property
     def cell2d(self):
@@ -515,3 +524,18 @@ class Board(object):
         if None in result:
             result.remove(None)
         return result
+
+    def init_zobrist(self):
+        # fill a table of random numbers/bitstrings
+        self.hashtable = []
+        for i in range(256):  # loop over the board, represented as a linear array
+            current_hashes = []
+            for j in range(4):  # loop over the pieces
+                current_hashes.append(random.randint(0, 2 ** 31))
+            self.hashtable.append(current_hashes)
+        h = 0
+        for i in range(256):  # loop over the board positions
+            # if self.cell[i] != EMPTY:
+            j = self.cell[i]
+            h ^= self.hashtable[i][j]
+        self.hash = h
