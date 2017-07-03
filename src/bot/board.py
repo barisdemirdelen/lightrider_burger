@@ -1,5 +1,4 @@
 import sys
-from array import array
 from collections import defaultdict
 from heapq import heappush, heappop, _siftdown
 
@@ -39,6 +38,7 @@ class Board(object):
         self.search_depth = 0
         self.search_score = 0
         self.hash = None
+        self.adjacents = [None] * 256
 
     def create_board(self, coord1=None, height=None):
         self.initialized = True
@@ -103,20 +103,25 @@ class Board(object):
                                                self.cell[row * self.height + col] == 4 + player_id)
 
     def get_adjacent(self, row, col):
-        l1, l2, l3, l4 = None, None, None, None
+        row_16 = row * 16
+        cache = self.adjacents[row_16 + col]
+        if cache is not None:
+            return cache
 
-        if 0 <= row - 1 < self.height and 0 <= col < self.width and self.cell[(row - 1) * self.height + col] == EMPTY:
+        l1, l2, l3, l4 = None, None, None, None
+        if 0 <= row - 1 < 16 and 0 <= col < 16 and self.cell[row_16 - 16 + col] == EMPTY:
             l1 = (row - 1, col)
-        if 0 <= row < self.height and 0 <= col + 1 < self.width and self.cell[row * self.height + col + 1] == EMPTY:
+        if 0 <= row < 16 and 0 <= col + 1 < 16 and self.cell[row_16 + col + 1] == EMPTY:
             l2 = (row, col + 1)
-        if 0 <= row + 1 < self.height and 0 <= col < self.width and self.cell[(row + 1) * self.height + col] == EMPTY:
+        if 0 <= row + 1 < 16 and 0 <= col < 16 and self.cell[row_16 + 16 + col] == EMPTY:
             l3 = (row + 1, col)
-        if 0 <= row < self.height and 0 <= col - 1 < self.width and self.cell[row * self.height + col - 1] == EMPTY:
+        if 0 <= row < 16 and 0 <= col - 1 < 16 and self.cell[row_16 + col - 1] == EMPTY:
             l4 = (row, col - 1)
 
         result = {l1, l2, l3, l4}
         if None in result:
             result.remove(None)
+        self.adjacents[row_16 + col] = result
         return result
 
     def get_adjacent_slow(self, row, col, player_id=0):
@@ -256,6 +261,7 @@ class Board(object):
         field.fast_area_cache = self.fast_area_cache
         field.players_seperated = self.players_seperated
         field.score = None
+        field.adjacents = self.adjacents[:]
         field.players = [player.Player(), player.Player()]
         field.players[0].row, field.players[0].col, field.players[1].row, field.players[1].col = self.players[0].row, \
                                                                                                  self.players[0].col, \
@@ -407,7 +413,14 @@ class Board(object):
             child_field = self.get_copy()
             child_field.cell[move[0][0] * board_size + move[0][1]] = next_player_id
             child_field.cell[next_player.row * board_size + next_player.col] = BLOCKED
+
+            adjacents = self.get_all_adjacent(next_player.row, next_player.col)
+            adjacents.update(self.get_all_adjacent(move[0][0], move[0][1]))
+            for adjacent in adjacents:
+                child_field.adjacents[adjacent[0] * board_size + adjacent[1]] = None
+
             child_field.players[next_player_id].row, child_field.players[next_player_id].col = move[0]
+            child_field.round += 1
             child_fields.append(child_field)
             directions.append(move[1])
 
@@ -416,8 +429,8 @@ class Board(object):
     def block_middle_score(self, p1_extra=0, p2_extra=0):
         p1_coord = self.players[0].coord
         p2_coord = self.players[1].coord
-        dijkstra1, _ = self.dijkstra(p1_coord)
-        dijkstra2, _ = self.dijkstra(p2_coord)
+        dijkstra1 = self.dijkstra(p1_coord)
+        dijkstra2 = self.dijkstra(p2_coord)
 
         p1_score = -1
         p2_score = -1
@@ -433,8 +446,7 @@ class Board(object):
 
     def block_unreachable(self, playerid):
         p1_coord = self.players[playerid].coord
-        p2_coord = self.players[1].coord
-        dijkstra1, _ = self.dijkstra(p1_coord)
+        dijkstra1 = self.dijkstra(p1_coord)
 
         for row in range(self.height):
             for col in range(self.width):
@@ -446,52 +458,22 @@ class Board(object):
         the neighbouring node that is closest to start."""
         tdist = defaultdict(lambda: float('inf'))
         tdist[start] = 0
-        preceding_node = {}
         unvisited = []
         visited = {start}
         heappush(unvisited, (0, start))
 
         while len(unvisited) > 0:
-            min_node = heappop(unvisited)[1]
+            dist_min_node, min_node = heappop(unvisited)
 
+            d = dist_min_node + 1
             neighbours = self.get_adjacent(*min_node)
             for neighbour in neighbours:
-                d = tdist[min_node] + 1
                 if neighbour not in visited:
-                    if tdist[neighbour] > d:
-                        preceding_node[neighbour] = min_node
-                        heappush(unvisited, (d, neighbour))
-                        tdist[neighbour] = d
+                    # if tdist[neighbour] > d:
+                    heappush(unvisited, (d, neighbour))
+                    tdist[neighbour] = d
                     visited.add(neighbour)
-
-        return tdist, preceding_node
-
-    def dijkstra_without_dead_ends(self, start):
-        """Returns a map of nodes to distance from start and a map of nodes to
-        the neighbouring node that is closest to start."""
-        tdist = defaultdict(lambda: float('inf'))
-        tdist[start] = 0
-        preceding_node = {}
-        unvisited = []
-        visited = {start}
-        heappush(unvisited, (0, start))
-
-        while len(unvisited) > 0:
-            min_node = heappop(unvisited)[1]
-
-            neighbours = self.get_adjacent(*min_node)
-            if len(neighbours) <= 2:
-                continue
-            for neighbour in neighbours:
-                d = tdist[min_node] + 1
-                if neighbour not in visited:
-                    if tdist[neighbour] > d:
-                        preceding_node[neighbour] = min_node
-                        heappush(unvisited, (d, neighbour))
-                        tdist[neighbour] = d
-                    visited.add(neighbour)
-
-        return tdist, preceding_node
+        return tdist
 
     @staticmethod
     def decrease_key(heap, old_key, new_key, value):
@@ -506,7 +488,8 @@ class Board(object):
 
         # def get_cell_coord(self, coord):
 
-    def get_cell2d(self):
+    @property
+    def cell2d(self):
         cell2d = []
         for row in range(self.height):
             current_row = []
@@ -515,3 +498,20 @@ class Board(object):
 
             cell2d.append(current_row)
         return cell2d
+
+    @staticmethod
+    def get_all_adjacent(row, col):
+        l1, l2, l3, l4 = None, None, None, None
+        if 0 <= row - 1 < 16 and 0 <= col < 16:
+            l1 = (row - 1, col)
+        if 0 <= row < 16 and 0 <= col + 1 < 16:
+            l2 = (row, col + 1)
+        if 0 <= row + 1 < 16 and 0 <= col < 16:
+            l3 = (row + 1, col)
+        if 0 <= row < 16 and 0 <= col - 1 < 16:
+            l4 = (row, col - 1)
+
+        result = {l1, l2, l3, l4}
+        if None in result:
+            result.remove(None)
+        return result

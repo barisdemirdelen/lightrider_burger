@@ -36,6 +36,7 @@ class BotMinimax(object):
         self.start_time = time.time()
         self.game.rounds_left = 0.5 * self.game.field.height * self.game.field.width - self.game.field.round
         self.game.field.score = None
+        self.game.field.adjacents = [None] * 256
         legal = self.game.field.legal_moves(self.game.my_botid)
         if len(legal) == 0:
             self.game.issue_order_pass()
@@ -101,7 +102,7 @@ class BotMinimax(object):
         return score
 
     def iterative_deepening_alpha_beta(self, only_me, search_path):
-        i = 1
+        i = 1 if only_me else 2
         # average_score = self.evaluate(self.game.field, only_me)
         best_score = None
         best_move = None
@@ -118,6 +119,11 @@ class BotMinimax(object):
                 best_move = path[0]
                 best_depth = i
                 best_path = path
+
+            current_time = time.time()
+            depth_time = (current_time - current_depth_start_time) * 1000.0
+            time_left = (available_time - current_time + self.start_time) * 1000
+            self.depth_times.append('%.2f' % depth_time)
             if best_move == 'pass':
                 break
             if score is None or score >= 999 or score <= -999:
@@ -126,16 +132,11 @@ class BotMinimax(object):
                 break
             if i > self.game.rounds_left * 2:
                 break
-            current_time = time.time()
             if current_time - self.start_time > available_time:
                 break
-            depth_time = (current_time - current_depth_start_time) * 1000.0
-            time_left = (available_time - current_time + self.start_time) * 1000
-            self.depth_times.append('%.2f' % depth_time)
-            if depth_time * 0.9 > time_left:
+            if depth_time * 2.1 > time_left:
                 break
-            i += 1
-            self.depth_times.append('%.2f' % ((time.time() - current_depth_start_time) * 1000.0))
+            i += 1 if only_me else 2
         return best_score, best_path, best_depth
 
     def alpha_beta(self, field, depth, player_id, alpha, beta, move_history, only_me, search_path):
@@ -146,9 +147,12 @@ class BotMinimax(object):
         moves = field.legal_moves(player_id)
         elapsed_time = time.time() - self.start_time
         if depth <= 0 or len(moves) == 0:
-            half_step = False if only_me else player_id != self.game.my_botid
-            score = self.evaluate(field, only_me, half_step)
-            return score if player_id == 0 or (only_me and self.game.my_botid == 0) else -score, move_history + [
+            score = -1001
+            if len(moves) > 0:
+                half_step = False if only_me else player_id != self.game.my_botid
+                score = self.evaluate(field, only_me, half_step)
+                score = score if player_id == 0 or (only_me and self.game.my_botid == 0) else -score
+            return score, move_history + [
                 'pass'] if len(
                 moves) == 0 else move_history
 
@@ -161,7 +165,7 @@ class BotMinimax(object):
         if len(search_path) > 0:
             priority_move = search_path.pop(0)
 
-        child_fields, directions = self.get_child_fields(field, player_id)
+        child_fields, directions = field.get_child_fields(player_id)
         child_fields, directions = self.sort_moves(child_fields, directions, player_id,
                                                    calculate_distance=True, priority=priority_move, only_me=only_me)
 
@@ -220,7 +224,10 @@ class BotMinimax(object):
                         node_history = self.histories[child_hash]
                         self.cached += 1
                 if not get_score_from_cache:
-                    next_depth = depth - 2
+                    if self.game.my_botid == player_id:
+                        next_depth = 1 if depth - 5 < 1 else depth - 5
+                    else:
+                        next_depth = 0 if depth - 5 < 0 else depth - 5
                     score, node_history = self.alpha_beta(child_field, next_depth,
                                                           player_id if only_me else player_id ^ 1,
                                                           -alpha - 1, -alpha,
@@ -258,11 +265,13 @@ class BotMinimax(object):
         children_counts = []
         distances = []
         for field in fields:
-            child_fields, _ = self.get_child_fields(field, next_player_id)
+            child_fields, _ = field.get_child_fields(next_player_id)
             children_counts.append(len(child_fields))
-            if calculate_distance and priority == False:
-                half_step = False if only_me else next_player_id == self.game.my_botid
-                distance_score = self.evaluate(field, only_me, half_step)
+            if calculate_distance and priority is None:
+                half_step = False if only_me else next_player_id != self.game.my_botid
+                distance_score = 0
+                if not half_step:
+                    distance_score = self.evaluate(field, only_me, half_step)
                 distances.append(distance_score if next_player_id == 1 else -distance_score)
             else:
                 distances.append(0)
@@ -295,10 +304,11 @@ class BotMinimax(object):
             p1_extra = 0
             p2_extra = 0
             if half_step:
-                if self.game.my_botid == 0:
-                    p1_extra = 1
-                else:
-                    p2_extra = 1
+                print('Where does animals come from?')
+                # if self.game.my_botid == 0:
+                #     p1_extra = 1
+                # else:
+                #     p2_extra = 1
             my_score, enemy_score = field.block_middle_score(p1_extra, p2_extra)
             # my_score, enemy_score = 100,100
             # my_score2 = -abs(my_player.coord[0] - field.height / 2 + 0.5) - abs(
@@ -309,11 +319,11 @@ class BotMinimax(object):
             # my_score += 10*my_score2
             # enemy_score += 10*enemy_score2
             # my_score, enemy_score = 10,10
-            if half_step:
-                if self.game.my_botid == 0:
-                    enemy_score -= 1
-                else:
-                    my_score -= 1
+            # if half_step:
+            #     if self.game.my_botid == 0:
+            #         enemy_score -= 1
+            #     else:
+            #         my_score -= 1
             if my_score != 0 or enemy_score != 0:
                 if my_score == 0:
                     my_score = -999
@@ -324,20 +334,3 @@ class BotMinimax(object):
             print('wart')
         field.score = score
         return score
-
-    @staticmethod
-    def get_child_fields(field, next_player_id):
-        child_fields = []
-        directions = []
-        next_player = field.players[next_player_id]
-        moves = field.legal_moves(next_player_id)
-        for move in moves:
-            child_field = field.get_copy()
-            child_field.cell[move[0][0] * 16 + move[0][1]] = next_player_id
-            child_field.cell[next_player.row * 16 + next_player.col] = BLOCKED
-            child_field.players[next_player_id].row, child_field.players[next_player_id].col = move[0]
-            child_field.round += 1
-            child_fields.append(child_field)
-            directions.append(move[1])
-
-        return child_fields, directions
