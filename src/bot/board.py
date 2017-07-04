@@ -22,6 +22,8 @@ board_size = 16
 
 
 class Board(object):
+    hashtable = None
+
     def __init__(self):
         self.width = 0
         self.height = 0
@@ -31,17 +33,19 @@ class Board(object):
         self.initialized = False
         self.distance_cache = {}
         self.area_cache = [{}, {}]
-        self.cache_distance = True
-        self.cache_area = True
+        self.cache_distance = False
+        self.cache_area = False
         self.fast_area_cache = [{}, {}]
-        self.cache_fast_area = True
+        self.cache_fast_area = False
         self.players_seperated = False
         self.score = None
         self.search_depth = 0
-        self.search_score = 0
         self.hash = None
+        self.children = None
+        self.best_moves = []
+        self._legal_moves = None
+        self.legal_player = None
         self.adjacents = [None] * 256
-        self.hashtable = None
 
     def create_board(self, coord1=None, height=None):
         if height:
@@ -63,122 +67,179 @@ class Board(object):
         self.init_zobrist()
         self.initialized = True
 
+    def get_copy(self):
+        field = Board()
+        field.width = self.width
+        field.height = self.height
+        field.cell = self.cell[:]
+        field.round = self.round
+        field.initialized = self.initialized
+        # field.distance_cache = self.distance_cache
+        # field.cache_area = self.cache_area
+        # field.cache_distance = self.cache_distance
+        # field.area_cache = self.area_cache
+        # field.cache_fast_area = self.cache_fast_area
+        # field.fast_area_cache = self.fast_area_cache
+        field.players_seperated = self.players_seperated
+        field.score = None
+        # field.adjacents = self.adjacents[:]
+        field.hash = self.hash
+        field.legal_player = self.legal_player
+        field.players = [player.Player(), player.Player()]
+        field.players[0].row, field.players[0].col = self.players[0].row, self.players[0].col
+        field.players[1].row, field.players[1].col = self.players[1].row, self.players[1].col
+        return field
+
+    def legal_moves(self):
+        if self._legal_moves is None:
+            my_player = self.players[self.legal_player]
+            result = []
+            for ((o_row, o_col), order) in DIRS:
+                t_row = my_player.row + o_row
+                t_col = my_player.col + o_col
+                if self.is_legal(t_row, t_col):
+                    result.append(((t_row, t_col), order))
+            self._legal_moves = result
+        return self._legal_moves
+
+    def get_child_fields(self):
+        moves = self.legal_moves()
+        if self.children is None:
+            self.children = []
+            for move in moves:
+                child_field = self.get_copy()
+                child_field.move(move[0])
+
+                self.children.append(child_field)
+        _, directions = zip(*moves)
+        return self.children, directions
+
+    def move(self, new_coord):
+        player = self.players[self.legal_player]
+        old_position = player.row * board_size + player.col
+        new_poisition = new_coord[0] * board_size + new_coord[1]
+        self.cell[old_position] = BLOCKED
+        self.cell[new_poisition] = self.legal_player
+        self.hash ^= Board.hashtable[old_position][self.legal_player]
+        self.hash ^= Board.hashtable[old_position][BLOCKED]
+        self.hash ^= Board.hashtable[new_poisition][EMPTY]
+        self.hash ^= Board.hashtable[new_poisition][self.legal_player]
+        player.row, player.col = new_coord
+
+        adjacents = self.get_all_adjacent(*player.coord)
+        adjacents.update(self.get_all_adjacent(*new_coord))
+        for adjacent in adjacents:
+            self.adjacents[adjacent[0] * board_size + adjacent[1]] = None
+
+        if self.legal_player == self.next_legal_player:
+            self.round += 1
+        else:
+            self.round += 0.5
+
+        self.legal_player = self.next_legal_player
+
+    def block_middle_score(self, p1_extra=0, p2_extra=0):
+        p1_coord = self.players[0].coord
+        p2_coord = self.players[1].coord
+        dijkstra1 = self.dijkstra(p1_coord)
+        dijkstra2 = self.dijkstra(p2_coord)
+
+        p1_score = -1
+        p2_score = -1
+
+        for row in range(self.height):
+            for col in range(self.width):
+                if dijkstra1[(row, col)] + p1_extra < dijkstra2[(row, col)] + p2_extra:
+                    p1_score += 1
+                elif dijkstra1[(row, col)] + p1_extra > dijkstra2[(row, col)] + p2_extra:
+                    p2_score += 1
+
+        return p1_score, p2_score
+
+    def block_unreachable(self, playerid):
+        p1_coord = self.players[playerid].coord
+        dijkstra1 = self.dijkstra(p1_coord)
+
+        for row in range(self.height):
+            for col in range(self.width):
+                if dijkstra1[(row, col)] == float('inf'):
+                    self.cell[row * self.height + col] = BLOCKED
+        self.update_zobrist()
+
+    def dijkstra(self, start):
+        """Returns a map of nodes to distance from start and a map of nodes to
+        the neighbouring node that is closest to start."""
+        tdist = defaultdict(lambda: float('inf'))
+        tdist[start] = 0
+        unvisited = []
+        visited = {start}
+        heappush(unvisited, (0, start))
+
+        while len(unvisited) > 0:
+            dist_min_node, min_node = heappop(unvisited)
+
+            d = dist_min_node + 1
+            neighbours = self.get_adjacent(*min_node)
+            for neighbour in neighbours:
+                if neighbour not in visited:
+                    # if tdist[neighbour] > d:
+                    heappush(unvisited, (d, neighbour))
+                    tdist[neighbour] = d
+                    visited.add(neighbour)
+        return tdist
+
+    @property
+    def cell2d(self):
+        cell2d = []
+        for row in range(self.height):
+            current_row = []
+            for col in range(self.width):
+                current_row.append(self.cell[row * self.height + col])
+
+            cell2d.append(current_row)
+        return cell2d
+
     @staticmethod
-    def parse_cell_char(players, row, col, char):
-        result = -1
-        if char == S_PLAYER1:
-            players[0].row = row
-            players[0].col = col
-        elif char == S_PLAYER2:
-            players[1].row = row
-            players[1].col = col
-        for (i, symbol) in CHARTABLE:
-            if symbol == char:
-                result = i
-                break
-        return result
-
-    def parse_cell(self, players, row, col, data):
-        item = self.parse_cell_char(players, row, col, data)
-        return item
-
-    def parse(self, players, data):
-        cells = data.split(',')
-        col = 0
-        row = 0
-        for cell in cells:
-            if col >= self.width:
-                col = 0
-                row += 1
-            self.cell[row * 16 + col] = self.parse_cell(players, row, col, cell)
-            col += 1
-
-    def in_bounds(self, row, col):
-        return 0 <= row < self.height and 0 <= col < self.width
-
-    def is_legal(self, row, col, player_id=0):
-        return (self.in_bounds(row, col)) and (
-            self.cell[row * self.height + col] == EMPTY or self.cell[row * self.height + col] == 4 + player_id)
-
-    def is_legal_with_players(self, row, col, player_id):
-        return (self.in_bounds(row, col)) and (self.cell[row * self.height + col] == EMPTY or
-                                               self.cell[row * self.height + col] == PLAYER1 or
-                                               self.cell[row * self.height + col] == PLAYER2 or
-                                               self.cell[row * self.height + col] == 4 + player_id)
-
-    def get_adjacent(self, row, col):
-        row_16 = row * 16
-        cache = self.adjacents[row_16 + col]
-        if cache is not None:
-            return cache
-
+    def get_all_adjacent(row, col):
         l1, l2, l3, l4 = None, None, None, None
-        if 0 <= row - 1 < 16 and 0 <= col < 16 and self.cell[row_16 - 16 + col] == EMPTY:
+        if 0 <= row - 1 < 16 and 0 <= col < 16:
             l1 = (row - 1, col)
-        if 0 <= row < 16 and 0 <= col + 1 < 16 and self.cell[row_16 + col + 1] == EMPTY:
+        if 0 <= row < 16 and 0 <= col + 1 < 16:
             l2 = (row, col + 1)
-        if 0 <= row + 1 < 16 and 0 <= col < 16 and self.cell[row_16 + 16 + col] == EMPTY:
+        if 0 <= row + 1 < 16 and 0 <= col < 16:
             l3 = (row + 1, col)
-        if 0 <= row < 16 and 0 <= col - 1 < 16 and self.cell[row_16 + col - 1] == EMPTY:
+        if 0 <= row < 16 and 0 <= col - 1 < 16:
             l4 = (row, col - 1)
 
         result = {l1, l2, l3, l4}
         if None in result:
             result.remove(None)
-        self.adjacents[row_16 + col] = result
         return result
 
-    def get_adjacent_slow(self, row, col, player_id=0):
-        result = []
-        # for (o_row, o_col), _ in DIRS:
-        # t_row, t_col = o_row + row, o_col + col
-        if self.is_legal(row - 1, col, player_id):
-            result.append((row - 1, col))
-        if self.is_legal(row, col + 1, player_id):
-            result.append((row, col + 1))
-        if self.is_legal(row + 1, col, player_id):
-            result.append((row + 1, col))
-        if self.is_legal(row, col - 1, player_id):
-            result.append((row, col - 1))
-        return result
+    def init_zobrist(self):
+        # fill a table of random numbers/bitstrings
+        Board.hashtable = []
+        for i in range(256):  # loop over the board, represented as a linear array
+            current_hashes = []
+            for j in range(4):  # loop over the pieces
+                current_hashes.append(random.randint(0, 2 ** 31))
+            Board.hashtable.append(current_hashes)
+        self.update_zobrist()
 
-    def get_adjacent_with_players(self, row, col, player_id):
-        result = []
-        for (o_row, o_col), _ in DIRS:
-            t_row, t_col = o_row + row, o_col + col
-            if self.is_legal_with_players(t_row, t_col, player_id):
-                result.append((t_row, t_col))
-        return result
+    def update_zobrist(self):
+        h = 0
+        for i in range(256):  # loop over the board positions
+            # if self.cell[i] != EMPTY:
+            j = self.cell[i]
+            h ^= Board.hashtable[i][j]
+        self.hash = h
 
-    def legal_moves(self, my_id):
-        my_player = self.players[my_id]
-        result = []
-        for ((o_row, o_col), order) in DIRS:
-            t_row = my_player.row + o_row
-            t_col = my_player.col + o_col
-            if self.is_legal(t_row, t_col):
-                result.append(((t_row, t_col), order))
-        return result
+    @property
+    def next_legal_player(self):
+        return self.legal_player if self.players_seperated else self.legal_player ^ 1
 
-    @staticmethod
-    def output_cell(cell):
-        done = False
-        for (i, symbol) in CHARTABLE:
-            if i in cell:
-                if not done:
-                    sys.stderr.write(symbol)
-                done = True
-                break
-        if not done:
-            sys.stderr.write('!')
-
-    def output(self):
-        for row in self.cell:
-            sys.stderr.write('\n')
-            for cell in row:
-                self.output_cell(cell)
-        sys.stderr.write('\n')
-        sys.stderr.flush()
+    def __hash__(self):
+        return self.hash
 
     def total_area(self, coord, player_id=0):
         if self.cache_area:
@@ -223,6 +284,71 @@ class Board(object):
             self.fast_area_cache[player_id][field_hash] = area
         return area
 
+    def in_bounds(self, row, col):
+        return 0 <= row < self.height and 0 <= col < self.width
+
+    def is_legal(self, row, col, player_id=0):
+        return (self.in_bounds(row, col)) and (
+            self.cell[row * self.height + col] == EMPTY or self.cell[row * self.height + col] == 4 + player_id)
+
+    def is_legal_with_players(self, row, col, player_id):
+        return (self.in_bounds(row, col)) and (self.cell[row * self.height + col] == EMPTY or
+                                               self.cell[row * self.height + col] == PLAYER1 or
+                                               self.cell[row * self.height + col] == PLAYER2 or
+                                               self.cell[row * self.height + col] == 4 + player_id)
+
+    def get_adjacent(self, row, col):
+        row_16 = row * 16
+        # cache = self.adjacents[row_16 + col]
+        # if cache is not None:
+        #     return cache
+
+        l1, l2, l3, l4 = None, None, None, None
+        if 0 <= row - 1 < 16 and 0 <= col < 16 and self.cell[row_16 - 16 + col] == EMPTY:
+            l1 = (row - 1, col)
+        if 0 <= row < 16 and 0 <= col + 1 < 16 and self.cell[row_16 + col + 1] == EMPTY:
+            l2 = (row, col + 1)
+        if 0 <= row + 1 < 16 and 0 <= col < 16 and self.cell[row_16 + 16 + col] == EMPTY:
+            l3 = (row + 1, col)
+        if 0 <= row < 16 and 0 <= col - 1 < 16 and self.cell[row_16 + col - 1] == EMPTY:
+            l4 = (row, col - 1)
+
+        result = {l1, l2, l3, l4}
+        if None in result:
+            result.remove(None)
+        # self.adjacents[row_16 + col] = result
+        return result
+
+    @staticmethod
+    def parse_cell_char(players, row, col, char):
+        result = -1
+        if char == S_PLAYER1:
+            players[0].row = row
+            players[0].col = col
+        elif char == S_PLAYER2:
+            players[1].row = row
+            players[1].col = col
+        for (i, symbol) in CHARTABLE:
+            if symbol == char:
+                result = i
+                break
+        return result
+
+    def parse_cell(self, players, row, col, data):
+        item = self.parse_cell_char(players, row, col, data)
+        return item
+
+    def parse(self, players, data):
+        cells = data.split(',')
+        col = 0
+        row = 0
+        for cell in cells:
+            if col >= self.width:
+                col = 0
+                row += 1
+            self.cell[row * 16 + col] = self.parse_cell(players, row, col, cell)
+            col += 1
+
     @staticmethod
     def get_manhattan_distance(c1, c2):
         y0, x0 = c1
@@ -250,35 +376,120 @@ class Board(object):
         # self.distance_cache[self_hash] = distance
         return distance
 
-    def get_copy(self):
-        field = Board()
-        field.width = self.width
-        field.height = self.height
-        field.cell = self.cell[:]
-        field.round = self.round
-        field.initialized = self.initialized
-        field.distance_cache = self.distance_cache
-        field.cache_area = self.cache_area
-        field.cache_distance = self.cache_distance
-        field.area_cache = self.area_cache
-        field.cache_fast_area = self.cache_fast_area
-        field.fast_area_cache = self.fast_area_cache
-        field.players_seperated = self.players_seperated
-        field.score = None
-        field.adjacents = self.adjacents[:]
-        field.hashtable = self.hashtable
-        field.hash = self.hash
-        field.players = [player.Player(), player.Player()]
-        field.players[0].row, field.players[0].col, field.players[1].row, field.players[1].col = self.players[0].row, \
-                                                                                                 self.players[0].col, \
-                                                                                                 self.players[1].row, \
-                                                                                                 self.players[1].col
-        return field
-
     def is_players_separated(self):
+        # return False
         if not self.players_seperated:
             self.players_seperated = self.get_player_true_distance() == float("inf")
+            if self.players_seperated:
+                sys.stderr.write('Players seperated\n')
+                self.children = None
+                self.score = None
+                self.best_moves = None
+                self.search_depth = 0
+                self.block_unreachable(self.legal_player)
         return self.players_seperated
+
+    @staticmethod
+    def get_coord_of_direction(coord, move):
+        for (o_row, o_col), direction in DIRS:
+            if direction == move:
+                return o_row + coord[0], o_col + coord[1]
+        return None
+
+    def find_child_field(self):
+        child_found = False
+        if self.children:
+            for child in self.children:
+                if child.hash == self.hash:
+                    return child
+                if child.children:
+                    for grandchild in child.children:
+                        if grandchild.hash == self.hash:
+                            return grandchild
+        sys.stderr.write('Couldnt find this child.\n')
+        return self
+
+    def get_adjacent_slow(self, row, col, player_id=0):
+        result = []
+        # for (o_row, o_col), _ in DIRS:
+        # t_row, t_col = o_row + row, o_col + col
+        if self.is_legal(row - 1, col, player_id):
+            result.append((row - 1, col))
+        if self.is_legal(row, col + 1, player_id):
+            result.append((row, col + 1))
+        if self.is_legal(row + 1, col, player_id):
+            result.append((row + 1, col))
+        if self.is_legal(row, col - 1, player_id):
+            result.append((row, col - 1))
+        return result
+
+    def get_adjacent_with_players(self, row, col, player_id):
+        result = []
+        for (o_row, o_col), _ in DIRS:
+            t_row, t_col = o_row + row, o_col + col
+            if self.is_legal_with_players(t_row, t_col, player_id):
+                result.append((t_row, t_col))
+        return result
+
+    def block_middle_slow(self):
+        field, prevent_p1 = self.block_middle_for_player(0)
+        field, prevent_p2 = field.block_middle_for_player(1)
+
+        for prevent_from in prevent_p1.keys():
+            for prevent_to in prevent_p1[prevent_from]:
+                field.cell[prevent_from[0] * board_size + prevent_from[1]] = 4
+                field.cell[prevent_to[0] * board_size + prevent_to[1]] = 5
+
+        for prevent_from in prevent_p2.keys():
+            for prevent_to in prevent_p2[prevent_from]:
+                field.cell[prevent_from[0] * board_size + prevent_from[1]] = 5
+                field.cell[prevent_to[0] * board_size + prevent_to[1]] = 4
+
+        field.cell[field.players[0].row * board_size + field.players[0].col] = 0
+        field.cell[field.players[1].row * board_size + field.players[1].col] = 1
+
+        return field
+
+    def block_middle_for_player(self, player_id):
+        field = self.get_copy()
+        first = True
+        path = None
+        prevent = defaultdict(set)
+        player = field.players[player_id]
+        while first or path is not None:
+            first = False
+            path = field.a_star_player_to_enemy(player_id, prevent_passing=prevent)
+            if path is None:
+                break
+            path = path[:-1]
+            if len(path) == 0:
+                # TODO buraya bişey yap
+                # sys.stderr.write('block middle path len 0?\n')
+                # sys.stderr.flush()
+                prevent[player.coord].add(field.players[player_id ^ 1].coord)
+            elif len(path) % 2 == 0:
+                c1 = path[len(path) // 2 - 1]
+                c2 = path[len(path) // 2]
+                prevent[c1].add(c2)
+                # field.cell[c1[0]][c1[1]] = 4
+                # field.cell[c2[0]][c2[1]] = 5
+            else:
+                c = path[(len(path) - 1) // 2]
+                field.cell[c[0] * board_size + c[1]] = BLOCKED
+        return field, prevent
+
+    def set_cell(self, cell):
+        self.create_board(coord1=(0, 0), height=len(cell))
+        for row in range(len(cell)):
+            for col in range(len(cell[row])):
+                self.cell[row * len(cell) + col] = cell[row][col]
+                if self.cell[row * len(cell) + col] == PLAYER1:
+                    self.players[PLAYER1].row, self.players[PLAYER1].col = row, col
+                elif self.cell[row * len(cell) + col] == PLAYER2:
+                    self.players[PLAYER2].row, self.players[PLAYER2].col = row, col
+        self.width = len(cell)
+        self.height = len(cell[0])
+        self.initialized = True
 
     def a_star_player_to_enemy(self, player_id, prevent_passing=None):
         return self.a_star(self.players[player_id].coord, self.players[player_id ^ 1].coord, player_id,
@@ -342,200 +553,3 @@ class Board(object):
             current = came_from[current]
             total_path.append(current)
         return list(reversed(total_path[:-1]))
-
-    def block_middle_slow(self):
-        field, prevent_p1 = self.block_middle_for_player(0)
-        field, prevent_p2 = field.block_middle_for_player(1)
-
-        for prevent_from in prevent_p1.keys():
-            for prevent_to in prevent_p1[prevent_from]:
-                field.cell[prevent_from[0] * board_size + prevent_from[1]] = 4
-                field.cell[prevent_to[0] * board_size + prevent_to[1]] = 5
-
-        for prevent_from in prevent_p2.keys():
-            for prevent_to in prevent_p2[prevent_from]:
-                field.cell[prevent_from[0] * board_size + prevent_from[1]] = 5
-                field.cell[prevent_to[0] * board_size + prevent_to[1]] = 4
-
-        field.cell[field.players[0].row * board_size + field.players[0].col] = 0
-        field.cell[field.players[1].row * board_size + field.players[1].col] = 1
-
-        return field
-
-    def block_middle_for_player(self, player_id):
-        field = self.get_copy()
-        first = True
-        path = None
-        prevent = defaultdict(set)
-        player = field.players[player_id]
-        while first or path is not None:
-            first = False
-            path = field.a_star_player_to_enemy(player_id, prevent_passing=prevent)
-            if path is None:
-                break
-            path = path[:-1]
-            if len(path) == 0:
-                # TODO buraya bişey yap
-                # sys.stderr.write('block middle path len 0?\n')
-                # sys.stderr.flush()
-                prevent[player.coord].add(field.players[player_id ^ 1].coord)
-            elif len(path) % 2 == 0:
-                c1 = path[len(path) // 2 - 1]
-                c2 = path[len(path) // 2]
-                prevent[c1].add(c2)
-                # field.cell[c1[0]][c1[1]] = 4
-                # field.cell[c2[0]][c2[1]] = 5
-            else:
-                c = path[(len(path) - 1) // 2]
-                field.cell[c[0] * board_size + c[1]] = BLOCKED
-        return field, prevent
-
-    def set_cell(self, cell):
-        self.create_board(coord1=(0, 0), height=len(cell))
-        for row in range(len(cell)):
-            for col in range(len(cell[row])):
-                self.cell[row * len(cell) + col] = cell[row][col]
-                if self.cell[row * len(cell) + col] == PLAYER1:
-                    self.players[PLAYER1].row, self.players[PLAYER1].col = row, col
-                elif self.cell[row * len(cell) + col] == PLAYER2:
-                    self.players[PLAYER2].row, self.players[PLAYER2].col = row, col
-        self.width = len(cell)
-        self.height = len(cell[0])
-        self.initialized = True
-
-    @staticmethod
-    def get_coord_of_direction(coord, move):
-        for (o_row, o_col), direction in DIRS:
-            if direction == move:
-                return o_row + coord[0], o_col + coord[1]
-        return None
-
-    def get_child_fields(self, next_player_id):
-        child_fields = []
-        directions = []
-        next_player = self.players[next_player_id]
-        moves = self.legal_moves(next_player_id)
-        for move in moves:
-            child_field = self.get_copy()
-            child_field.move(next_player_id, move[0])
-            child_fields.append(child_field)
-            directions.append(move[1])
-
-        return child_fields, directions
-
-    def block_middle_score(self, p1_extra=0, p2_extra=0):
-        p1_coord = self.players[0].coord
-        p2_coord = self.players[1].coord
-        dijkstra1 = self.dijkstra(p1_coord)
-        dijkstra2 = self.dijkstra(p2_coord)
-
-        p1_score = -1
-        p2_score = -1
-
-        for row in range(self.height):
-            for col in range(self.width):
-                if dijkstra1[(row, col)] + p1_extra < dijkstra2[(row, col)] + p2_extra:
-                    p1_score += 1
-                elif dijkstra1[(row, col)] + p1_extra > dijkstra2[(row, col)] + p2_extra:
-                    p2_score += 1
-
-        return p1_score, p2_score
-
-    def block_unreachable(self, playerid):
-        p1_coord = self.players[playerid].coord
-        dijkstra1 = self.dijkstra(p1_coord)
-
-        for row in range(self.height):
-            for col in range(self.width):
-                if dijkstra1[(row, col)] == float('inf'):
-                    self.cell[row * self.height + col] = BLOCKED
-
-    def dijkstra(self, start):
-        """Returns a map of nodes to distance from start and a map of nodes to
-        the neighbouring node that is closest to start."""
-        tdist = defaultdict(lambda: float('inf'))
-        tdist[start] = 0
-        unvisited = []
-        visited = {start}
-        heappush(unvisited, (0, start))
-
-        while len(unvisited) > 0:
-            dist_min_node, min_node = heappop(unvisited)
-
-            d = dist_min_node + 1
-            neighbours = self.get_adjacent(*min_node)
-            for neighbour in neighbours:
-                if neighbour not in visited:
-                    # if tdist[neighbour] > d:
-                    heappush(unvisited, (d, neighbour))
-                    tdist[neighbour] = d
-                    visited.add(neighbour)
-        return tdist
-
-    @staticmethod
-    def decrease_key(heap, old_key, new_key, value):
-        index = heap.index((old_key, value))
-        heap[index] = (new_key, value)
-        _siftdown(heap, 0, index)
-
-    def move(self, player_id, coord):
-        player = self.players[player_id]
-        self.cell[coord[0] * board_size + coord[1]] = player_id
-        self.cell[player.row * board_size + player.col] = BLOCKED
-        old_position = player.row * board_size + player.col
-        new_poisition = coord[0] * board_size + coord[1]
-        self.hash ^= self.hashtable[new_poisition][EMPTY]
-        self.hash ^= self.hashtable[new_poisition][player_id]
-        self.hash ^= self.hashtable[old_position][player_id]
-        self.hash ^= self.hashtable[old_position][BLOCKED]
-
-        adjacents = self.get_all_adjacent(player.row, player.col)
-        adjacents.update(self.get_all_adjacent(*coord))
-        for adjacent in adjacents:
-            self.adjacents[adjacent[0] * board_size + adjacent[1]] = None
-
-        self.players[player_id].row, self.players[player_id].col = coord
-        self.round += 1
-
-    @property
-    def cell2d(self):
-        cell2d = []
-        for row in range(self.height):
-            current_row = []
-            for col in range(self.width):
-                current_row.append(self.cell[row * self.height + col])
-
-            cell2d.append(current_row)
-        return cell2d
-
-    @staticmethod
-    def get_all_adjacent(row, col):
-        l1, l2, l3, l4 = None, None, None, None
-        if 0 <= row - 1 < 16 and 0 <= col < 16:
-            l1 = (row - 1, col)
-        if 0 <= row < 16 and 0 <= col + 1 < 16:
-            l2 = (row, col + 1)
-        if 0 <= row + 1 < 16 and 0 <= col < 16:
-            l3 = (row + 1, col)
-        if 0 <= row < 16 and 0 <= col - 1 < 16:
-            l4 = (row, col - 1)
-
-        result = {l1, l2, l3, l4}
-        if None in result:
-            result.remove(None)
-        return result
-
-    def init_zobrist(self):
-        # fill a table of random numbers/bitstrings
-        self.hashtable = []
-        for i in range(256):  # loop over the board, represented as a linear array
-            current_hashes = []
-            for j in range(4):  # loop over the pieces
-                current_hashes.append(random.randint(0, 2 ** 31))
-            self.hashtable.append(current_hashes)
-        h = 0
-        for i in range(256):  # loop over the board positions
-            # if self.cell[i] != EMPTY:
-            j = self.cell[i]
-            h ^= self.hashtable[i][j]
-        self.hash = h
