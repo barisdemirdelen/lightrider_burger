@@ -18,6 +18,8 @@ class BotMinimax(object):
         self.cached = 0
         self.cut = 0
         self.parameters = Parameters()
+        self.p1_next_coord_prediction = None
+        self.p1_last_coord = None
 
     def setup(self, game):
         self.game = game
@@ -39,6 +41,16 @@ class BotMinimax(object):
         self.cached = 0
         self.cut = 0
         self.game.field = self.game.field.find_child_field()
+
+        p1_new_coord = self.game.field.players[1].coord
+        if self.p1_next_coord_prediction and self.p1_last_coord:
+            p1_predicted_coord = self.game.field.get_coord_of_direction(self.p1_last_coord,
+                                                                        self.p1_next_coord_prediction)
+            if p1_new_coord != p1_predicted_coord:
+                sys.stderr.write('I thought he would go %s but i was wrong\n' % self.p1_next_coord_prediction)
+
+        self.p1_last_coord = p1_new_coord
+        self.p1_next_coord_prediction = None
 
     def do_turn(self):
         self.init_turn()
@@ -69,6 +81,8 @@ class BotMinimax(object):
                 sys.stderr.write('Score is None\n')
             if best_path:
                 self.game.issue_order(best_path[0])
+                if len(best_path) > 1 and best_path[1] != 'pass':
+                    self.p1_next_coord_prediction = best_path[1]
             else:
                 self.game.issue_order(legal[0][1])
             sys.stderr.flush()
@@ -84,6 +98,7 @@ class BotMinimax(object):
             search_path = search_path[:-1]
         best_path = search_path[:]
         i = max(i, len(search_path))
+        self.parameters.quiescence_depth = 0
 
         best_score = None
         best_move = None
@@ -92,9 +107,8 @@ class BotMinimax(object):
         while True:
             current_depth_start_time = time.time()
             score, path = self.alpha_beta(self.game.field, i, 0, -float('inf'), float('inf'), search_path=best_path)
-            if path is not None and score is not None:
-                if not path:
-                    sys.stderr.write('Path is empty in depth %d\n' % i)
+
+            if path and score is not None:
                 best_score = score
                 best_depth = i
                 best_move = path[0]
@@ -108,7 +122,7 @@ class BotMinimax(object):
                 break
             if score is None or score >= 999 or score <= -999:
                 break
-            if best_path is None or best_path[-1] == 'pass':
+            if not best_path or best_path[-1] == 'pass':
                 break
             if i > self.game.rounds_left * 2:
                 break
@@ -129,6 +143,9 @@ class BotMinimax(object):
             score = -1001
             if moves:
                 score = self.evaluate(field, player_id)
+            elif not field.get_adjacent(*field.players[1 - player_id].coord):
+                score = 0
+                depth = 999
             alpha_history = ['pass'] if not moves else []
             field.score = score
             field.search_depth = depth
@@ -195,7 +212,7 @@ class BotMinimax(object):
                 if score is None:
                     return None, None
                 score = -score
-                if score > alpha:
+                if beta > score > alpha:
                     next_depth = depth - 1
                     score, node_history = self.alpha_beta(child_field, next_depth, 1 - player_id, -beta, -alpha,
                                                           search_path)
@@ -254,6 +271,58 @@ class BotMinimax(object):
                 my_score = -999
             elif enemy_score == 0:
                 enemy_score = -999
-        score = my_score - enemy_score
+        score = (my_score - enemy_score)
         score = score if player_id == 0 else -score
         return score
+
+    def quiescence_search(self, field, player_id, depth):
+        if depth <= field.search_depth and field.score is not None:
+            self.cached += 1
+            return field.score
+
+        moves = field.legal_moves()
+        elapsed_time = time.time() - self.start_time
+        total_time_limit = float(elapsed_time) > self.game.last_timebank * 0.9 / 1000
+        turn_time_limit = elapsed_time > self.game.get_available_time_per_turn(self.parameters.available_time_factor)
+        # total_time_limit = False
+        # turn_time_limit = False
+        if depth <= 0 or not moves or total_time_limit or turn_time_limit:
+            score = -1001
+            if moves:
+                score = self.evaluate(field, player_id)
+            elif not field.get_adjacent(*field.players[1 - player_id].coord):
+                score = 0
+                depth = 999
+            field.score = score
+            field.search_depth = depth
+            if score < -900 or score > 900:
+                field.search_depth = 999
+            return score
+
+        # priority_move = None
+        child_fields, directions = field.get_child_fields()
+        # child_fields, directions = self.sort_moves(child_fields, directions, priority=priority_move)
+
+        best_score = self.quiescence_search_moves(child_fields, directions, depth, player_id)
+        if best_score is not None:
+            field.score = best_score
+            field.search_depth = depth
+            if best_score > 900 or best_score < -900:
+                field.search_depth = 999
+
+        return best_score
+
+    def quiescence_search_moves(self, child_fields, directions, depth, player_id):
+        best_field = None
+        best_score = -float('inf')
+        for field in child_fields:
+            if not field.score:
+                score = -self.evaluate(field, player_id)
+                field.score = score
+                field.search_depth = 0
+                if score < -900 or score > 900:
+                    field.search_depth = 999
+            if field.score > best_score:
+                best_field = field
+                best_score = field.score
+        return -self.quiescence_search(best_field, 1 - player_id, depth - 1)

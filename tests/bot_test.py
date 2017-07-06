@@ -24,7 +24,7 @@ class TestBot(unittest.TestCase):
         self.bot.setup(self.game)
 
     def tearDown(self):
-       pass
+        pass
 
     def test_turn1(self):
         self.bot.do_turn()
@@ -333,6 +333,22 @@ class TestBot(unittest.TestCase):
         score = self.bot.do_turn()
         self.assertNotEqual(score, None)
 
+    def test_reduce_depth_stability(self):
+        message = 'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,.,.,.,x,x,x,x,x,.,.,.,.,.,.,.,x,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,x,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,x,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,x,1,x,x,.,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,0,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
+        self.game.update(message)
+        score = self.bot.do_turn()
+        self.assertEqual(self.game.last_order, 'left')  # if wrong bot is reducing too much depth
+        message = 'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,.,.,.,x,x,x,x,x,.,.,.,.,.,.,.,x,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,x,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,x,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,x,1,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,0,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
+        self.game.update(message)
+        score = self.bot.do_turn()
+        self.assertLess(score, 900)  # if wrong bot is reducing wrong odd depths
+
+    def test_losing_position_score(self):
+        message = 'update game field .,x,x,x,.,.,.,.,x,x,x,x,1,.,.,.,.,x,x,x,.,.,.,.,x,x,x,x,x,x,.,.,.,x,x,x,x,x,.,x,x,x,x,x,x,x,.,.,.,x,x,x,x,x,.,x,x,x,x,x,x,x,.,.,.,0,x,x,x,.,.,.,.,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,x,x,.,x,x,x,x,.,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.\n' \
+                  'action move 318'
+        self.game.update(message)
+        score = self.bot.do_turn()
+        self.assertLess(score, 0)
 
 
 

@@ -328,16 +328,20 @@ class Board(object):
             if mybotid == 0:
                 players[0].row = row
                 players[0].col = col
+                return 0
             else:
                 players[1].row = row
                 players[1].col = col
+                return 1
         elif char == S_PLAYER2:
             if mybotid == 0:
                 players[1].row = row
                 players[1].col = col
+                return 1
             else:
                 players[0].row = row
                 players[0].col = col
+                return 0
         for (i, symbol) in CHARTABLE:
             if symbol == char:
                 result = i
