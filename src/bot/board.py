@@ -24,7 +24,6 @@ board_size = 16
 
 class Board(object):
     hashtable = None
-    djikstra_tdist = [999] * 256
 
     def __init__(self):
         self.width = 0
@@ -47,7 +46,7 @@ class Board(object):
         self.best_moves = []
         self._legal_moves = None
         self.legal_player = None
-        self.adjacents = [None] * 256
+        self.adjacents = None
 
     def create_board(self, coord1=None, height=None):
         if height:
@@ -323,25 +322,33 @@ class Board(object):
         return result
 
     @staticmethod
-    def parse_cell_char(players, row, col, char):
+    def parse_cell_char(players, row, col, char, mybotid):
         result = -1
         if char == S_PLAYER1:
-            players[0].row = row
-            players[0].col = col
+            if mybotid == 0:
+                players[0].row = row
+                players[0].col = col
+            else:
+                players[1].row = row
+                players[1].col = col
         elif char == S_PLAYER2:
-            players[1].row = row
-            players[1].col = col
+            if mybotid == 0:
+                players[1].row = row
+                players[1].col = col
+            else:
+                players[0].row = row
+                players[0].col = col
         for (i, symbol) in CHARTABLE:
             if symbol == char:
                 result = i
                 break
         return result
 
-    def parse_cell(self, players, row, col, data):
-        item = self.parse_cell_char(players, row, col, data)
+    def parse_cell(self, players, row, col, data, mybotid):
+        item = self.parse_cell_char(players, row, col, data, mybotid)
         return item
 
-    def parse(self, players, data):
+    def parse(self, players, data, mybotid):
         cells = data.split(',')
         col = 0
         row = 0
@@ -349,7 +356,7 @@ class Board(object):
             if col >= self.width:
                 col = 0
                 row += 1
-            self.cell[row * 16 + col] = self.parse_cell(players, row, col, cell)
+            self.cell[row * 16 + col] = self.parse_cell(players, row, col, cell, mybotid)
             col += 1
 
     @staticmethod

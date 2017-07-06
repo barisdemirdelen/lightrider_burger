@@ -60,6 +60,7 @@ class TestBot(unittest.TestCase):
                         '.,.,.,.,.,.,x,x,x,.,.,.,.,.,.,.,' \
                         '.,.,.,.,.,.,0,1,x,.,.,.,.,.,.,.'
         self.game.update(field_message)
+        self.bot.init_turn()
         area = self.game.field.total_area((15, 7))
         self.assertEqual(area, 0)
 

@@ -16,8 +16,8 @@ class Game(object):
         self.time_per_move = 200
         self.player_names = []
         self.my_bot = 'not set'
-        self.my_botid = -1
-        self.other_botid = -1
+        self._my_botid = -1
+        self._other_botid = -1
 
         self.field = Board()
         self.last_order = None
@@ -27,10 +27,10 @@ class Game(object):
         self.silent = False
 
     def my_player(self):
-        return self.field.players[self.my_botid]
+        return self.field.players[0]
 
     def other_player(self):
-        return self.field.players[self.other_botid]
+        return self.field.players[1]
 
     def get_available_time_per_turn(self, available_time_factor):
         available_time = available_time_factor * self.last_timebank / self.rounds_left + self.time_per_move
@@ -59,8 +59,8 @@ class Game(object):
                     if key1 == 'your_bot':
                         self.my_bot = tokens[2]
                     if key1 == 'your_botid':
-                        self.my_botid = int(tokens[2])
-                        self.other_botid = 1 - self.my_botid
+                        self._my_botid = int(tokens[2])
+                        self.other_botid = 1 - self._my_botid
                     if key1 == 'field_width':
                         self.field.width = int(tokens[2])
                     if key1 == 'field_height':
@@ -74,7 +74,7 @@ class Game(object):
                         elif key2 == 'field':
                             if not self.field.initialized:
                                 self.field.create_board()
-                            self.field.parse(self.field.players, tokens[3])
+                            self.field.parse(self.field.players, tokens[3],self._my_botid)
                 elif key0 == 'action' and tokens[1] == 'move':
                     self.last_timebank = int(tokens[2])
                     # Launching bot logic happens after setup finishes
