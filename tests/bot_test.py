@@ -24,7 +24,7 @@ class TestBot(unittest.TestCase):
         self.bot.setup(self.game)
 
     def tearDown(self):
-        pass
+       pass
 
     def test_turn1(self):
         self.bot.do_turn()
@@ -300,6 +300,37 @@ class TestBot(unittest.TestCase):
         self.game.update(message)
         self.bot.do_turn()
         self.assertNotEqual(self.game.last_order, 'left')
+
+    def test_seperation_process(self):
+        message = 'settings your_botid 1\n' \
+                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,1,x,.,.,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,.,x,x,x,x,x,x,x,x,.,.,x,.,x,x,x,x,x,x,x,x,x,x,.,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,.,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,.,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,0,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
+        self.game.update(message)
+        self.bot.do_turn()
+        message = 'settings your_botid 1\n' \
+                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,.,.,.,.,.,.,.,1,.,.,.,x,.,.,.,.,.,x,x,x,x,x,x,x,x,.,.,x,.,x,x,x,x,x,x,x,x,x,x,.,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,.,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,.,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,0,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
+        self.game.update(message)
+        self.bot.do_turn()
+        message = 'settings your_botid 1\n' \
+                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,.,.,.,.,.,.,.,x,1,.,.,x,.,.,.,.,.,x,x,x,x,x,x,x,x,.,.,x,.,x,x,x,x,x,x,x,x,x,x,.,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,.,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,.,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,0,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
+        self.game.update(message)
+        self.bot.do_turn()
+        message = 'settings your_botid 1\n' \
+                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,.,.,.,.,.,.,.,x,x,1,.,x,.,.,.,.,.,x,x,x,x,x,x,x,x,.,.,x,.,x,x,x,x,x,x,x,x,x,x,.,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,.,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,.,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,0,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
+        self.game.update(message)
+        self.bot.do_turn()
+        message = 'settings your_botid 1\n' \
+                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,.,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,1,.,x,x,x,x,x,.,.,.,.,.,.,.,x,x,x,.,x,.,.,.,.,.,x,x,x,x,x,x,x,x,.,.,x,.,x,x,x,x,x,x,x,x,x,x,.,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,.,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,.,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,0,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
+        self.game.update(message)
+        self.bot.do_turn()
+        message = 'settings your_botid 1\n' \
+                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,1,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,.,.,.,.,.,.,.,x,x,x,.,x,.,.,.,.,.,x,x,x,x,x,x,x,x,.,.,x,.,x,x,x,x,x,x,x,x,x,x,.,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,.,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,.,x,x,x,x,x,x,x,.,.,.,0,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
+        self.game.update(message)
+        self.bot.do_turn()
+        message = 'settings your_botid 1\n' \
+                  'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,.,1,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,.,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,.,.,.,.,.,.,.,x,x,x,.,x,.,.,.,.,.,x,x,x,x,x,x,x,x,.,.,x,.,x,x,x,x,x,x,x,x,x,x,.,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,.,.,x,x,x,x,x,x,x,x,x,x,x,.,.,x,x,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,.,x,x,x,x,x,x,x,x,x,x,x,x,.,x,x,x,x,x,x,x,.,.,.,.,.,.,.,x,.,x,x,x,x,x,x,x,.,.,.,x,0,.,.,x,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
+        self.game.update(message)
+        score = self.bot.do_turn()
+        self.assertNotEqual(score, None)
 
 
 

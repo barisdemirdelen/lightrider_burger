@@ -1,8 +1,9 @@
 import os
 import random
 import sys
-from collections import defaultdict
-from heapq import heappush, heappop, _siftdown
+from collections import defaultdict, deque
+from functools import reduce
+from heapq import heappush, heappop
 
 from bot import player
 
@@ -23,6 +24,7 @@ board_size = 16
 
 class Board(object):
     hashtable = None
+    djikstra_tdist = [999] * 256
 
     def __init__(self):
         self.width = 0
@@ -74,15 +76,15 @@ class Board(object):
         field.cell = self.cell[:]
         field.round = self.round
         field.initialized = self.initialized
-        # field.distance_cache = self.distance_cache
-        # field.cache_area = self.cache_area
-        # field.cache_distance = self.cache_distance
-        # field.area_cache = self.area_cache
-        # field.cache_fast_area = self.cache_fast_area
-        # field.fast_area_cache = self.fast_area_cache
+        field.distance_cache = self.distance_cache
+        field.cache_area = self.cache_area
+        field.cache_distance = self.cache_distance
+        field.area_cache = self.area_cache
+        field.cache_fast_area = self.cache_fast_area
+        field.fast_area_cache = self.fast_area_cache
         field.players_seperated = self.players_seperated
         field.score = None
-        # field.adjacents = self.adjacents[:]
+        field.adjacents = self.adjacents[:]
         field.hash = self.hash
         field.legal_player = self.legal_player
         field.players = [player.Player(), player.Player()]
@@ -138,7 +140,7 @@ class Board(object):
 
         self.legal_player = self.next_legal_player
 
-    def block_middle_score(self, p1_extra=0, p2_extra=0):
+    def block_middle_score(self):
         p1_coord = self.players[0].coord
         p2_coord = self.players[1].coord
         dijkstra1 = self.dijkstra(p1_coord)
@@ -147,12 +149,11 @@ class Board(object):
         p1_score = -1
         p2_score = -1
 
-        for row in range(self.height):
-            for col in range(self.width):
-                if dijkstra1[(row, col)] + p1_extra < dijkstra2[(row, col)] + p2_extra:
-                    p1_score += 1
-                elif dijkstra1[(row, col)] + p1_extra > dijkstra2[(row, col)] + p2_extra:
-                    p2_score += 1
+        for d1, d2 in zip(dijkstra1, dijkstra2):
+            if d1 < d2:
+                p1_score += 1
+            elif d1 > d2:
+                p2_score += 1
 
         return p1_score, p2_score
 
@@ -160,31 +161,33 @@ class Board(object):
         p1_coord = self.players[playerid].coord
         dijkstra1 = self.dijkstra(p1_coord)
 
-        for row in range(self.height):
-            for col in range(self.width):
-                if dijkstra1[(row, col)] == float('inf'):
-                    self.cell[row * self.height + col] = BLOCKED
+        for i in range(256):
+            if dijkstra1[i] == 999:
+                self.cell[i] = BLOCKED
         self.update_zobrist()
 
     def dijkstra(self, start):
         """Returns a map of nodes to distance from start and a map of nodes to
         the neighbouring node that is closest to start."""
-        tdist = defaultdict(lambda: float('inf'))
-        tdist[start] = 0
-        unvisited = []
+        tdist = [999] * 256
+        tdist[start[0] * 16 + start[1]] = 0
+        unvisited = deque()
         visited = {start}
-        heappush(unvisited, (0, start))
+        unvisited.append((0, start))
+        # heappush(unvisited, (0, start))
 
-        while len(unvisited) > 0:
-            dist_min_node, min_node = heappop(unvisited)
+        while unvisited:
+            dist_min_node, min_node = unvisited.popleft()
 
             d = dist_min_node + 1
             neighbours = self.get_adjacent(*min_node)
             for neighbour in neighbours:
                 if neighbour not in visited:
                     # if tdist[neighbour] > d:
-                    heappush(unvisited, (d, neighbour))
-                    tdist[neighbour] = d
+                    # unvisited.push(d, neighbour)
+                    unvisited.append((d, neighbour))
+                    # heappush(unvisited, (d, neighbour))
+                    tdist[neighbour[0] * 16 + neighbour[1]] = d
                     visited.add(neighbour)
         return tdist
 
@@ -253,7 +256,7 @@ class Board(object):
             area = set()
             queue = set()
             queue.add(child)
-            while len(queue) > 0:
+            while queue:
                 current = queue.pop()
                 area.add(current)
                 current_adjacent = self.get_adjacent(current[0], current[1])
@@ -273,7 +276,7 @@ class Board(object):
         area = set()
         queue = set()
         queue.add(coord)
-        while len(queue) > 0:
+        while queue:
             current = queue.pop()
             area.add(current)
             current_adjacent = self.get_adjacent(current[0], current[1])
@@ -299,9 +302,9 @@ class Board(object):
 
     def get_adjacent(self, row, col):
         row_16 = row * 16
-        # cache = self.adjacents[row_16 + col]
-        # if cache is not None:
-        #     return cache
+        cache = self.adjacents[row_16 + col]
+        if cache is not None:
+            return cache
 
         l1, l2, l3, l4 = None, None, None, None
         if 0 <= row - 1 < 16 and 0 <= col < 16 and self.cell[row_16 - 16 + col] == EMPTY:
@@ -316,7 +319,7 @@ class Board(object):
         result = {l1, l2, l3, l4}
         if None in result:
             result.remove(None)
-        # self.adjacents[row_16 + col] = result
+        self.adjacents[row_16 + col] = result
         return result
 
     @staticmethod
@@ -368,26 +371,29 @@ class Board(object):
         return self.get_manhattan_distance(self.players[0].coord, self.players[1].coord)
 
     def get_player_true_distance(self):
-        # self_hash = hash(str(self.cell))
-        # if self_hash in self.distance_cache:
-        #     return self.distance_cache[self_hash]
+        self_hash = hash(str(self.cell))
+        if self_hash in self.distance_cache:
+            return self.distance_cache[self_hash]
         path = self.a_star_player_to_enemy(0)
         distance = float("inf") if path is None else len(path)
-        # self.distance_cache[self_hash] = distance
+        self.distance_cache[self_hash] = distance
         return distance
 
     def is_players_separated(self):
-        # return False
-        if not self.players_seperated:
-            self.players_seperated = self.get_player_true_distance() == float("inf")
-            if self.players_seperated:
-                sys.stderr.write('Players seperated\n')
-                self.children = None
-                self.score = None
-                self.best_moves = None
-                self.search_depth = 0
-                self.block_unreachable(self.legal_player)
-        return self.players_seperated
+        return False
+        # if not self.players_seperated:
+        #     self.players_seperated = self.get_player_true_distance() == float("inf")
+        #     if self.players_seperated:
+        #         sys.stderr.write('Players seperated\n')
+        #         self.reset_caches()
+        #         self.block_unreachable(self.legal_player)
+        # return self.players_seperated
+
+    def reset_caches(self):
+        self.children = None
+        self.score = None
+        self.best_moves = []
+        self.search_depth = 0
 
     @staticmethod
     def get_coord_of_direction(coord, move):
@@ -407,6 +413,7 @@ class Board(object):
                         if grandchild.hash == self.hash:
                             return grandchild
         sys.stderr.write('Couldnt find this child.\n')
+        self.reset_caches()
         return self
 
     def get_adjacent_slow(self, row, col, player_id=0):
@@ -513,7 +520,7 @@ class Board(object):
         g_score[start] = 0
         f_score[start] = self.get_manhattan_distance(start, goal)
 
-        while len(open_set) > 0:
+        while open_set:
             current = heappop(open_heap)[1]
             # current = sorted(open_set, key=lambda x: f_score[x])[0]
             if current == goal:
