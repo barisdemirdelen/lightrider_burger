@@ -1,8 +1,6 @@
-import os
 import random
 import sys
 from collections import defaultdict, deque
-from functools import reduce
 from heapq import heappush, heappop
 
 from bot import player
@@ -69,7 +67,7 @@ class Board(object):
         self.initialized = True
 
     def get_copy(self):
-        field = Board()
+        field = Board.__new__(Board)
         field.width = self.width
         field.height = self.height
         field.cell = self.cell[:]
@@ -82,10 +80,14 @@ class Board(object):
         field.cache_fast_area = self.cache_fast_area
         field.fast_area_cache = self.fast_area_cache
         field.players_seperated = self.players_seperated
-        field.score = None
         field.adjacents = self.adjacents[:]
         field.hash = self.hash
         field.legal_player = self.legal_player
+        field.children = None
+        field.best_moves = []
+        field._legal_moves = None
+        field.score = None
+        field.search_depth = 0
         field.players = [player.Player(), player.Player()]
         field.players[0].row, field.players[0].col = self.players[0].row, self.players[0].col
         field.players[1].row, field.players[1].col = self.players[1].row, self.players[1].col
@@ -125,18 +127,22 @@ class Board(object):
         self.hash ^= Board.hashtable[old_position][BLOCKED]
         self.hash ^= Board.hashtable[new_poisition][EMPTY]
         self.hash ^= Board.hashtable[new_poisition][self.legal_player]
-        player.row, player.col = new_coord
 
-        adjacents = self.get_all_adjacent(*player.coord)
-        adjacents.update(self.get_all_adjacent(*new_coord))
+        # adjacents = self.get_all_adjacent(*player.coord)
+        adjacents = self.adjacents[new_poisition]
         for adjacent in adjacents:
-            self.adjacents[adjacent[0] * board_size + adjacent[1]] = None
+            adjacent_posisition = adjacent[0] * 16 + adjacent[1]
+            cached_adjacent = self.adjacents[adjacent_posisition].copy()
+            cached_adjacent.remove(new_coord)
+            self.adjacents[adjacent_posisition] = cached_adjacent
+        self.adjacents[old_position] = set()
 
         if self.legal_player == self.next_legal_player:
             self.round += 1
         else:
             self.round += 0.5
 
+        player.row, player.col = new_coord
         self.legal_player = self.next_legal_player
 
     def block_middle_score(self):
@@ -153,6 +159,21 @@ class Board(object):
                 p1_score += 1
             elif d1 > d2:
                 p2_score += 1
+
+        # dijkstra_dead1 = self.dijkstra_without_deadends(p1_coord)
+        # dijkstra_dead2 = self.dijkstra_without_deadends(p2_coord)
+        #
+        # p1_dead_score = -1
+        # p2_dead_score = -1
+        #
+        # for d1, d2 in zip(dijkstra_dead1, dijkstra_dead2):
+        #     if d1 < d2:
+        #         p1_dead_score += 1
+        #     elif d1 > d2:
+        #         p2_dead_score += 1
+        #
+        # p1_score += 0.1 * p1_dead_score
+        # p2_score += 0.1 * p2_dead_score
 
         return p1_score, p2_score
 
@@ -179,7 +200,7 @@ class Board(object):
             dist_min_node, min_node = unvisited.popleft()
 
             d = dist_min_node + 1
-            neighbours = self.get_adjacent(*min_node)
+            neighbours = self.adjacents[min_node[0] * 16 + min_node[1]]
             for neighbour in neighbours:
                 if neighbour not in visited:
                     # if tdist[neighbour] > d:
@@ -249,7 +270,7 @@ class Board(object):
             if field_hash in self.area_cache[player_id]:
                 return self.area_cache[player_id][field_hash]
 
-        childs = self.get_adjacent(coord[0], coord[1])
+        childs = self.adjacents[coord[0] * 16 + coord[1]]
         best_area = 0
         for child in childs:
             area = set()
@@ -258,7 +279,7 @@ class Board(object):
             while queue:
                 current = queue.pop()
                 area.add(current)
-                current_adjacent = self.get_adjacent(current[0], current[1])
+                current_adjacent = self.adjacents[current[0] * 16 + current[1]]
                 for adjacent in current_adjacent:
                     if adjacent not in area and adjacent not in queue:
                         queue.add(adjacent)
@@ -268,6 +289,7 @@ class Board(object):
         return best_area
 
     def total_area_fast(self, coord, player_id=0):
+        field_hash = None
         if self.cache_fast_area:
             field_hash = hash(str([coord] + self.cell))
             if field_hash in self.fast_area_cache[player_id]:
@@ -278,7 +300,7 @@ class Board(object):
         while queue:
             current = queue.pop()
             area.add(current)
-            current_adjacent = self.get_adjacent(current[0], current[1])
+            current_adjacent = self.adjacents[current[0] * 16 + current[1]]
             for adjacent in current_adjacent:
                 if adjacent not in area and adjacent not in queue:
                     queue.add(adjacent)
@@ -298,28 +320,6 @@ class Board(object):
                                                self.cell[row * self.height + col] == PLAYER1 or
                                                self.cell[row * self.height + col] == PLAYER2 or
                                                self.cell[row * self.height + col] == 4 + player_id)
-
-    def get_adjacent(self, row, col):
-        row_16 = row * 16
-        cache = self.adjacents[row_16 + col]
-        if cache is not None:
-            return cache
-
-        l1, l2, l3, l4 = None, None, None, None
-        if 0 <= row - 1 < 16 and 0 <= col < 16 and self.cell[row_16 - 16 + col] == EMPTY:
-            l1 = (row - 1, col)
-        if 0 <= row < 16 and 0 <= col + 1 < 16 and self.cell[row_16 + col + 1] == EMPTY:
-            l2 = (row, col + 1)
-        if 0 <= row + 1 < 16 and 0 <= col < 16 and self.cell[row_16 + 16 + col] == EMPTY:
-            l3 = (row + 1, col)
-        if 0 <= row < 16 and 0 <= col - 1 < 16 and self.cell[row_16 + col - 1] == EMPTY:
-            l4 = (row, col - 1)
-
-        result = {l1, l2, l3, l4}
-        if None in result:
-            result.remove(None)
-        self.adjacents[row_16 + col] = result
-        return result
 
     @staticmethod
     def parse_cell_char(players, row, col, char, mybotid):
@@ -405,6 +405,7 @@ class Board(object):
         self.score = None
         self.best_moves = []
         self.search_depth = 0
+        self.cache_adjacent_initial()
 
     @staticmethod
     def get_coord_of_direction(coord, move):
@@ -414,7 +415,6 @@ class Board(object):
         return None
 
     def find_child_field(self):
-        child_found = False
         if self.children:
             for child in self.children:
                 if child.hash == self.hash:
@@ -571,3 +571,52 @@ class Board(object):
             current = came_from[current]
             total_path.append(current)
         return list(reversed(total_path[:-1]))
+
+    def dijkstra_without_deadends(self, start):
+        """Returns a map of nodes to distance from start and a map of nodes to
+        the neighbouring node that is closest to start."""
+        tdist = [999] * 256
+        tdist[start[0] * 16 + start[1]] = 0
+        unvisited = deque()
+        visited = {start}
+        unvisited.append((0, start))
+        # heappush(unvisited, (0, start))
+
+        while unvisited:
+            dist_min_node, min_node = unvisited.popleft()
+
+            d = dist_min_node + 1
+            neighbours = self.adjacents[min_node[0] * 16 + min_node[1]]
+            if len(neighbours) == 2:
+                if self.get_euclidian_distance_square(*neighbours) == 4:
+                    continue
+            for neighbour in neighbours:
+                if neighbour not in visited:
+                    # if tdist[neighbour] > d:
+                    # unvisited.push(d, neighbour)
+                    unvisited.append((d, neighbour))
+                    # heappush(unvisited, (d, neighbour))
+                    tdist[neighbour[0] * 16 + neighbour[1]] = d
+                    visited.add(neighbour)
+        return tdist
+
+    def cache_adjacent_initial(self):
+        self.adjacents = []
+        for row in range(16):
+            for col in range(16):
+                row_16 = row * 16
+
+                l1, l2, l3, l4 = None, None, None, None
+                if 0 <= row - 1 < 16 and 0 <= col < 16 and self.cell[row_16 - 16 + col] == EMPTY:
+                    l1 = (row - 1, col)
+                if 0 <= row < 16 and 0 <= col + 1 < 16 and self.cell[row_16 + col + 1] == EMPTY:
+                    l2 = (row, col + 1)
+                if 0 <= row + 1 < 16 and 0 <= col < 16 and self.cell[row_16 + 16 + col] == EMPTY:
+                    l3 = (row + 1, col)
+                if 0 <= row < 16 and 0 <= col - 1 < 16 and self.cell[row_16 + col - 1] == EMPTY:
+                    l4 = (row, col - 1)
+
+                result = {l1, l2, l3, l4}
+                if None in result:
+                    result.remove(None)
+                self.adjacents.append(result)

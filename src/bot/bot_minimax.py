@@ -20,6 +20,7 @@ class BotMinimax(object):
         self.parameters = Parameters()
         self.p1_next_coord_prediction = None
         self.p1_last_coord = None
+        self.first_turn = True
 
     def setup(self, game):
         self.game = game
@@ -35,7 +36,6 @@ class BotMinimax(object):
         self.game.rounds_left = 0.5 * self.game.field.height * self.game.field.width - self.game.field.round
         self.game.field.score = None
         self.game.field.legal_player = 0
-        self.game.field.adjacents = [None] * 256
         self.game.field.update_zobrist()
         self.game.field._legal_moves = None
         self.cached = 0
@@ -51,6 +51,10 @@ class BotMinimax(object):
 
         self.p1_last_coord = p1_new_coord
         self.p1_next_coord_prediction = None
+
+        if self.first_turn:
+            self.game.field.cache_adjacent_initial()
+        self.first_turn = False
 
     def do_turn(self):
         self.init_turn()
@@ -91,14 +95,13 @@ class BotMinimax(object):
 
     def iterative_deepening_alpha_beta(self, search_path):
         i = 2
-        best_path = []
         if search_path and search_path[-1] == 'pass':
             search_path = search_path[:-1]
         if search_path and len(search_path) % 2 == 1:
             search_path = search_path[:-1]
         best_path = search_path[:]
         i = max(i, len(search_path))
-        self.parameters.quiescence_depth = 0
+        # self.parameters.quiescence_depth = i
 
         best_score = None
         best_move = None
@@ -116,7 +119,6 @@ class BotMinimax(object):
 
             current_time = time.time()
             depth_time = (current_time - current_depth_start_time) * 1000.0
-            time_left = (available_time - current_time + self.start_time) * 1000
             self.depth_times.append('%.2f' % depth_time)
             if best_move == 'pass':
                 break
@@ -140,24 +142,14 @@ class BotMinimax(object):
 
         moves = field.legal_moves()
         if depth <= 0 or not moves:
-            score = -1001
-            if moves:
-                score = self.evaluate(field, player_id)
-            elif not field.get_adjacent(*field.players[1 - player_id].coord):
-                score = 0
-                depth = 999
+            score = self.evaluate(field, player_id)
             alpha_history = ['pass'] if not moves else []
-            field.score = score
-            field.search_depth = depth
-            field.best_moves = alpha_history
-            if score < -900 or score > 900:
-                field.search_depth = 999
             if alpha_history is None:
                 sys.stderr.write('Why is this None\n')
             return score, alpha_history
 
         elapsed_time = time.time() - self.start_time
-        if float(elapsed_time) > self.game.last_timebank * 0.9 / 1000:
+        if float(elapsed_time) > self.game.last_timebank * 0.7 / 1000:
             sys.stderr.write('We are on limit at time\n')
             return None, None
         if elapsed_time > self.game.get_available_time_per_turn(self.parameters.available_time_factor):
@@ -169,7 +161,8 @@ class BotMinimax(object):
             priority_move = search_path.pop(0)
 
         child_fields, directions = field.get_child_fields()
-        child_fields, directions = self.sort_moves(child_fields, directions, priority=priority_move)
+        child_fields, directions = self.sort_moves(child_fields, directions, priority=priority_move,
+                                                   player_id=player_id)
 
         best_score, alpha_history = self.aspiration_search_moves(child_fields, directions, depth, player_id, alpha,
                                                                  beta, search_path)
@@ -199,7 +192,7 @@ class BotMinimax(object):
                         return best_score, alpha_history
                     alpha = best_score
             else:
-                # if child_field.score and -child_field.score + 500 < best_score:
+                # if i > 1 and child_field.score and -child_field.score + 11 < best_score:
                 #     self.cut += 1
                 #     continue
                 reduction_factor = self.parameters.reduction_factor
@@ -230,19 +223,17 @@ class BotMinimax(object):
                     best_score = score
         return best_score, alpha_history
 
-    @staticmethod
-    def sort_moves(fields, directions, priority):
-
+    def sort_moves(self, fields, directions, priority, player_id):
         if not fields:
             return fields, directions
         child_list = []
         distances = [0] * len(fields)
-        for field in fields:
-            if field.score is None:
-                break
-        else:
-            for i, field in enumerate(fields):
-                distances[i] = -field.score
+        # for field in fields:
+        #     if field.score is None:
+        #         break
+        # else:
+        for i, field in enumerate(fields):
+            distances[i] = -field.score if field.score else 0
 
         if priority is None:
             if distances:
@@ -261,18 +252,32 @@ class BotMinimax(object):
         return sorted_fields, sorted_directions
 
     def evaluate(self, field, player_id):
-        depth = field.round - self.game.field.round
-        my_player = field.players[0]
-        enemy_player = field.players[1]
+        if field.score:
+            self.cached += 1
+            return field.score
 
-        my_score, enemy_score = field.block_middle_score()
-        if my_score != 0 or enemy_score != 0:
-            if my_score == 0:
-                my_score = -999
-            elif enemy_score == 0:
-                enemy_score = -999
-        score = (my_score - enemy_score)
-        score = score if player_id == 0 else -score
+        score = -999
+        depth = 0
+        if field.legal_moves():
+            my_score, enemy_score = field.block_middle_score()
+            if my_score != 0 or enemy_score != 0:
+                if my_score == 0:
+                    my_score = -999
+                elif enemy_score == 0:
+                    enemy_score = -999
+            score = my_score - enemy_score
+            score = score if player_id == 0 else -score
+        elif not field.adjacents[field.players[1 - player_id].row * 16 + field.players[1 - player_id].col]:
+            score = 0
+            depth = 999
+
+        if score < -900 or score > 900:
+            depth = 999
+
+        field.score = score
+        field.search_depth = 0
+        field.search_depth = depth
+
         return score
 
     def quiescence_search(self, field, player_id, depth):
@@ -287,42 +292,30 @@ class BotMinimax(object):
         # total_time_limit = False
         # turn_time_limit = False
         if depth <= 0 or not moves or total_time_limit or turn_time_limit:
-            score = -1001
-            if moves:
-                score = self.evaluate(field, player_id)
-            elif not field.get_adjacent(*field.players[1 - player_id].coord):
-                score = 0
-                depth = 999
-            field.score = score
-            field.search_depth = depth
-            if score < -900 or score > 900:
-                field.search_depth = 999
+            score = self.evaluate(field, player_id)
             return score
 
         # priority_move = None
         child_fields, directions = field.get_child_fields()
         # child_fields, directions = self.sort_moves(child_fields, directions, priority=priority_move)
 
-        best_score = self.quiescence_search_moves(child_fields, directions, depth, player_id)
+        best_score = self.quiescence_search_moves(child_fields, depth, player_id)
         if best_score is not None:
             field.score = best_score
-            field.search_depth = depth
+            field.search_depth = 0
             if best_score > 900 or best_score < -900:
                 field.search_depth = 999
 
         return best_score
 
-    def quiescence_search_moves(self, child_fields, directions, depth, player_id):
+    def quiescence_search_moves(self, child_fields, depth, player_id):
         best_field = None
         best_score = -float('inf')
         for field in child_fields:
-            if not field.score:
-                score = -self.evaluate(field, player_id)
-                field.score = score
-                field.search_depth = 0
-                if score < -900 or score > 900:
-                    field.search_depth = 999
-            if field.score > best_score:
+            score = field.score
+            if not score:
+                score = self.evaluate(field, 1 - player_id)
+            if score > best_score:
                 best_field = field
-                best_score = field.score
+                best_score = score
         return -self.quiescence_search(best_field, 1 - player_id, depth - 1)
