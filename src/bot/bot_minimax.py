@@ -59,7 +59,7 @@ class BotMinimax(object):
     def do_turn(self):
         self.init_turn()
         score = None
-        legal = self.game.field.legal_moves()
+        legal = self.game.field.legal_moves
         if not legal:
             self.game.issue_order_pass()
         elif len(legal) == 1:
@@ -67,7 +67,7 @@ class BotMinimax(object):
         else:
             rounds_left_0 = self.game.field.total_area(self.game.field.players[0].coord, player_id=0) // 2
             self.game.rounds_left = rounds_left_0 + 1
-            search_path = self.game.field.best_moves[:]
+            search_path = self.game.field.best_moves.copy()
             score, best_path, depth = self.iterative_deepening_alpha_beta(search_path=search_path)
             self.last_only_me = self.separated
             self.last_path = best_path
@@ -99,7 +99,7 @@ class BotMinimax(object):
             search_path = search_path[:-1]
         if search_path and len(search_path) % 2 == 1:
             search_path = search_path[:-1]
-        best_path = search_path[:]
+        best_path = search_path.copy()
         i = max(i, len(search_path))
         # self.parameters.quiescence_depth = i
 
@@ -140,7 +140,7 @@ class BotMinimax(object):
             self.cached += 1
             return field.score, field.best_moves
 
-        moves = field.legal_moves()
+        moves = field.legal_moves
         if depth <= 0 or not moves:
             score = self.evaluate(field, player_id)
             alpha_history = ['pass'] if not moves else []
@@ -156,7 +156,7 @@ class BotMinimax(object):
             return None, None
 
         priority_move = None
-        search_path = search_path[:]
+        search_path = search_path.copy()
         if search_path:
             priority_move = search_path.pop(0)
 
@@ -251,14 +251,14 @@ class BotMinimax(object):
 
         return sorted_fields, sorted_directions
 
-    def evaluate(self, field, player_id):
+    def evaluate(self, field, player_id, cache=True):
         if field.score:
             self.cached += 1
             return field.score
 
         score = -999
         depth = 0
-        if field.legal_moves():
+        if field.legal_moves:
             my_score, enemy_score = field.block_middle_score()
             if my_score != 0 or enemy_score != 0:
                 if my_score == 0:
@@ -274,9 +274,10 @@ class BotMinimax(object):
         if score < -900 or score > 900:
             depth = 999
 
-        field.score = score
-        field.search_depth = 0
-        field.search_depth = depth
+        if cache:
+            field.score = score
+            field.search_depth = 0
+            field.search_depth = depth
 
         return score
 
@@ -285,7 +286,7 @@ class BotMinimax(object):
             self.cached += 1
             return field.score
 
-        moves = field.legal_moves()
+        moves = field.legal_moves
         elapsed_time = time.time() - self.start_time
         total_time_limit = float(elapsed_time) > self.game.last_timebank * 0.9 / 1000
         turn_time_limit = elapsed_time > self.game.get_available_time_per_turn(self.parameters.available_time_factor)
@@ -314,7 +315,7 @@ class BotMinimax(object):
         for field in child_fields:
             score = field.score
             if not score:
-                score = self.evaluate(field, 1 - player_id)
+                score = self.evaluate(field, 1 - player_id, cache=False)
             if score > best_score:
                 best_field = field
                 best_score = score

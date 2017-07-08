@@ -32,8 +32,8 @@ class FakeEngine(object):
 
             self.game.field.create_board(coord1)
 
-        p1_game.field = self.game.field.get_copy()
-        p2_game.field = self.game.field.get_copy()
+        p1_game.field = self.game.field.copy()
+        p2_game.field = self.game.field.copy()
 
         # self.game.update(initial_message)
         # p1_game.update(initial_message)

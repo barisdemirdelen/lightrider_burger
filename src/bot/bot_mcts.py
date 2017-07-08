@@ -39,7 +39,7 @@ class BotMCTS(object):
         #     self.game.issue_order(legal[0][1])
         else:
             if self.current_node is None:
-                self.current_node = Node.create_node(self.game.field.get_copy(), None, self.game.my_botid)
+                self.current_node = Node.create_node(self.game.field.copy(), None, self.game.my_botid)
             else:
                 for child in self.current_node.children:
                     if self.game.field.players[self.game.my_botid].coord == child.state.players[
@@ -53,7 +53,7 @@ class BotMCTS(object):
                         break
                 else:
                     sys.stderr.write('This wasnt in our plans\n')
-                    self.current_node = Node.create_node(self.game.field.get_copy(), None, self.game.my_botid)
+                    self.current_node = Node.create_node(self.game.field.copy(), None, self.game.my_botid)
             while True:
                 current_time = time.time()
                 available_time = self.game.get_available_time_per_turn()
@@ -102,7 +102,7 @@ class BotMCTS(object):
         return u1
 
     def make_move(self, field, action, player_id):
-        new_field = field.get_copy()
+        new_field = field.copy()
         new_field.cell[action[0][0] * new_field.height + action[0][1]] = 0
         # new_field.cell[action[1][0][0]][action[1][0][1]] = 1
         new_field.cell[new_field.players[player_id].row * new_field.height + new_field.players[player_id].col] = BLOCKED
@@ -114,7 +114,7 @@ class BotMCTS(object):
 
     def playout(self, s):
         field = s.state
-        self.engine.reset(field.get_copy())
+        self.engine.reset(field.copy())
         # self.engine.field = field.get_copy()
         # self.bot1.game.field = field.get_copy()
         # self.bot2.game.field = field.get_copy()
