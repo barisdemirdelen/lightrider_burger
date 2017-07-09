@@ -21,10 +21,29 @@ class Game(object):
 
         self.field = Board()
         self.last_order = None
+        self.last_order_coord = None
         self.last_update = 0
         self.last_timebank = 0
         self.rounds_left = 0
         self.silent = False
+
+    def copy(self):
+        game = Game.__new__(Game)
+        game.initial_timebank = self.initial_timebank
+        game.time_per_move = self.time_per_move
+        game.player_names = self.player_names
+        game.my_bot = self.my_bot
+        game._my_botid = self._my_botid
+        game._other_botid = self._other_botid
+
+        game.field = self.field.copy()
+        game.last_order = self.last_order
+        game.last_update = self.last_update
+        game.last_timebank = self.last_timebank
+        game.rounds_left = self.rounds_left
+        game.silent = self.silent
+        game.last_order_coord = self.last_order_coord
+        return game
 
     def my_player(self):
         return self.field.players[0]
@@ -74,7 +93,7 @@ class Game(object):
                         elif key2 == 'field':
                             if not self.field.initialized:
                                 self.field.create_board()
-                            self.field.parse(self.field.players, tokens[3],self._my_botid)
+                            self.field.parse(self.field.players, tokens[3], self._my_botid)
                 elif key0 == 'action' and tokens[1] == 'move':
                     self.last_timebank = int(tokens[2])
                     # Launching bot logic happens after setup finishes

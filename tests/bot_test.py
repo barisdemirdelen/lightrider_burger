@@ -2,6 +2,7 @@ import unittest
 
 import time
 
+from bot.bot_mcts import BotMCTS
 from bot.bot_minimax import BotMinimax
 from bot.game import Game
 
@@ -332,6 +333,7 @@ class TestBot(unittest.TestCase):
         self.game.update(message)
         score = self.bot.do_turn()
         self.assertNotEqual(score, None)
+        self.assertEqual(self.game.field.players_separated, True)
 
     def test_reduce_depth_stability(self):
         message = 'update game field .,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,.,.,.,x,x,x,x,x,.,.,.,.,.,.,.,x,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,x,.,.,x,x,.,.,.,.,.,.,.,.,.,.,.,x,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,x,1,x,x,.,.,.,.,.,.,.,.,.,.,.,.,x,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,0,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.,.'
@@ -349,6 +351,15 @@ class TestBot(unittest.TestCase):
         self.game.update(message)
         score = self.bot.do_turn()
         self.assertLess(score, 0)
+
+    def test_fill_separated_field(self):
+        message = 'update game round 47 \n' \
+                  'update game field .,.,.,.,.,x,x,x,x,.,.,.,.,.,.,.,.,.,.,.,.,x,x,x,x,x,x,.,.,.,.,.,.,.,.,.,.,x,x,.,.,x,x,.,.,.,.,.,.,.,.,.,.,x,x,.,x,x,x,.,.,.,.,.,.,.,.,.,.,x,x,.,x,x,x,x,.,.,.,.,.,.,.,0,.,x,x,.,.,x,.,x,.,.,.,.,.,.,.,x,x,x,x,.,.,x,.,x,.,.,.,.,.,.,.,x,x,x,x,.,.,x,.,x,.,.,.,.,.,.,.,x,x,x,.,.,.,x,.,x,.,.,.,.,.,.,.,x,x,x,.,.,.,x,.,x,.,.,.,.,.,.,.,x,x,x,.,.,.,x,.,x,.,.,.,.,.,.,.,x,x,x,.,.,.,x,.,x,.,.,.,.,.,.,.,x,x,x,.,.,.,x,x,x,.,.,.,1,.,.,.,x,x,x,.,.,.,.,x,x,.,.,.,x,.,.,.,x,x,x,x,x,x,x,x,.,.,.,.,x,.,.,.,.,x,x,x,x,x,x,x,x,x,x,x,x\n' \
+                  'action move 3985\n'
+        self.game.update(message)
+        self.bot.do_turn()
+        self.assertEqual(self.game.last_order, 'right')
+
 
 
 

@@ -30,18 +30,15 @@ class Board(object):
         self.players = [Player(), Player()]
         self.round = 0
         self.initialized = False
-        self.distance_cache = {}
-        self.area_cache = [{}, {}]
-        self.cache_distance = False
-        self.cache_area = False
-        self.fast_area_cache = [{}, {}]
-        self.cache_fast_area = False
-        self.players_seperated = False
+        self._players_separated = False
         self.score = None
         self.search_depth = 0
+        self.best_moves = []
+        self.separated_score = None
+        self.separated_search_depth = 0
+        self.separated_best_moves = []
         self.hash = None
         self.children = None
-        self.best_moves = []
         self._legal_moves = None
         self.legal_player = None
         self.adjacents = None
@@ -72,35 +69,26 @@ class Board(object):
         field.height = self.height
         field.round = self.round
         field.initialized = self.initialized
-        field.distance_cache = self.distance_cache
-        field.cache_area = self.cache_area
-        field.cache_distance = self.cache_distance
-        field.area_cache = self.area_cache
-        field.cache_fast_area = self.cache_fast_area
-        field.fast_area_cache = self.fast_area_cache
-        field.players_seperated = self.players_seperated
+        field._players_separated = self._players_separated
         field.hash = self.hash
         field.legal_player = self.legal_player
         field.adjacents = self.adjacents.copy()
         field.cell = self.cell.copy()
         field.players = [player.copy for player in self.players]
         field.search_depth = 0
+        field.separated_search_depth = 0
         field.best_moves = []
+        field.separated_best_moves = []
         field.children = None
         field._legal_moves = None
         field.score = None
+        field.separated_score = None
         return field
 
     def move(self, new_coord):
         player = self.players[self.legal_player]
         old_position = player.row * board_size + player.col
         new_poisition = new_coord[0] * board_size + new_coord[1]
-        self.cell[old_position] = BLOCKED
-        self.cell[new_poisition] = self.legal_player
-        self.hash ^= Board.hashtable[old_position][self.legal_player]
-        self.hash ^= Board.hashtable[old_position][BLOCKED]
-        self.hash ^= Board.hashtable[new_poisition][EMPTY]
-        self.hash ^= Board.hashtable[new_poisition][self.legal_player]
 
         adjacents = self.adjacents[new_poisition]
         for adjacent in adjacents:
@@ -109,6 +97,13 @@ class Board(object):
             cached_adjacent.remove(new_coord)
             self.adjacents[adjacent_posisition] = cached_adjacent
         self.adjacents[old_position] = set()
+
+        self.cell[old_position] = BLOCKED
+        self.cell[new_poisition] = self.legal_player
+        self.hash ^= Board.hashtable[old_position][self.legal_player]
+        self.hash ^= Board.hashtable[old_position][BLOCKED]
+        self.hash ^= Board.hashtable[new_poisition][EMPTY]
+        self.hash ^= Board.hashtable[new_poisition][self.legal_player]
 
         if self.legal_player == self.next_legal_player:
             self.round += 1
@@ -119,6 +114,13 @@ class Board(object):
         self.legal_player = self.next_legal_player
 
     def block_middle_score(self):
+        p1_coord = self.players[0].coord
+        p2_coord = self.players[1].coord
+        p1_score, p2_score = self.double_headed_dijkstra(p1_coord, p2_coord)
+
+        return p1_score - 1, p2_score - 1
+
+    def block_middle_score_old(self):
         p1_coord = self.players[0].coord
         p2_coord = self.players[1].coord
         dijkstra1 = self.dijkstra(p1_coord)
@@ -150,6 +152,18 @@ class Board(object):
 
         return p1_score, p2_score
 
+    def separated_block_middle_score(self):
+        p1_coord = self.players[0].coord
+        dijkstra1 = self.dijkstra(p1_coord)
+
+        p1_score = -1
+
+        for d1 in dijkstra1:
+            if d1 < 900:
+                p1_score += 1
+
+        return p1_score, 0
+
     def dijkstra(self, start):
         """Returns a map of nodes to distance from start and a map of nodes to
         the neighbouring node that is closest to start."""
@@ -174,6 +188,38 @@ class Board(object):
                     tdist[neighbour[0] * 16 + neighbour[1]] = d
                     visited.add(neighbour)
         return tdist
+
+    def double_headed_dijkstra(self, start1, start2):
+        """Returns a map of nodes to distance from start and a map of nodes to
+        the neighbouring node that is closest to start."""
+        tdist = [999] * 256
+        tdist[start1[0] * 16 + start1[1]] = 0
+        tdist[start2[0] * 16 + start2[1]] = 0
+        unvisited = deque()
+        # visited1 = {start1}
+        # visited2 = {start2}
+        visited = [1, 1]
+        unvisited.append((0, start1, 0))
+        unvisited.append((0, start2, 1))
+        # heappush(unvisited, (0, start))
+
+        while unvisited:
+            dist_min_node, min_node, player_id = unvisited.popleft()
+
+            d = dist_min_node + 1
+            neighbours = self.adjacents[min_node[0] * 16 + min_node[1]]
+            for neighbour in neighbours:
+                if tdist[neighbour[0] * 16 + neighbour[1]] > d:
+                    # if neighbour not in visited[player_id] and (
+                    #                 neighbour not in visited[1 - player_id] or tdist[
+                    #                     neighbour[0] * 16 + neighbour[1]] == d):
+                    # if tdist[neighbour] > d:
+                    # unvisited.push(d, neighbour)
+                    unvisited.append((d, neighbour, player_id))
+                    # heappush(unvisited, (d, neighbour))
+                    tdist[neighbour[0] * 16 + neighbour[1]] = d
+                    visited[player_id] += 1
+        return visited
 
     def find_child_field(self):
         if self.children:
@@ -203,6 +249,8 @@ class Board(object):
 
     def get_child_fields(self):
         moves = self.legal_moves
+        if not moves:
+            return [], []
         if self.children is None:
             self.children = []
             for move in moves:
@@ -253,26 +301,28 @@ class Board(object):
         for row in range(16):
             for col in range(16):
                 row_16 = row * 16
+                if self.cell[row_16 + col] == BLOCKED:
+                    self.adjacents.append(set())
+                else:
+                    l1, l2, l3, l4 = None, None, None, None
+                    if 0 <= row - 1 < 16 and 0 <= col < 16 and self.cell[row_16 - 16 + col] == EMPTY:
+                        l1 = (row - 1, col)
+                    if 0 <= row < 16 and 0 <= col + 1 < 16 and self.cell[row * 16 + col + 1] == EMPTY:
+                        l2 = (row, col + 1)
+                    if 0 <= row + 1 < 16 and 0 <= col < 16 and self.cell[row_16 + 16 + col] == EMPTY:
+                        l3 = (row + 1, col)
+                    if 0 <= row < 16 and 0 <= col - 1 < 16 and self.cell[row * 16 + col - 1] == EMPTY:
+                        l4 = (row, col - 1)
 
-                l1, l2, l3, l4 = None, None, None, None
-                if 0 <= row - 1 < 16 and 0 <= col < 16 and self.cell[row_16 - 16 + col] == EMPTY:
-                    l1 = (row - 1, col)
-                if 0 <= row < 16 and 0 <= col + 1 < 16 and self.cell[row_16 + col + 1] == EMPTY:
-                    l2 = (row, col + 1)
-                if 0 <= row + 1 < 16 and 0 <= col < 16 and self.cell[row_16 + 16 + col] == EMPTY:
-                    l3 = (row + 1, col)
-                if 0 <= row < 16 and 0 <= col - 1 < 16 and self.cell[row_16 + col - 1] == EMPTY:
-                    l4 = (row, col - 1)
-
-                result = {l1, l2, l3, l4}
-                if None in result:
-                    result.remove(None)
-                self.adjacents.append(result)
+                    result = {l1, l2, l3, l4}
+                    if None in result:
+                        result.remove(None)
+                    self.adjacents.append(result)
 
     # ------------------------------------------------------------------------------------------------------------------
 
-    def block_unreachable(self, playerid):
-        p1_coord = self.players[playerid].coord
+    def block_unreachable(self):
+        p1_coord = self.players[0].coord
         dijkstra1 = self.dijkstra(p1_coord)
 
         for i in range(256):
@@ -308,10 +358,10 @@ class Board(object):
     def a_star(self, start, goal, player_id=0, prevent_passing=None):
         if prevent_passing is None:
             prevent_passing = defaultdict(set)
-        if self.cache_distance:
-            field_hash = hash(str([start, goal, player_id, prevent_passing] + self.cell))
-            if field_hash in self.distance_cache:
-                return self.distance_cache[field_hash]
+        # if self.cache_distance:
+        #     field_hash = hash(str([start, goal, player_id, prevent_passing] + self.cell))
+        #     if field_hash in self.distance_cache:
+        #         return self.distance_cache[field_hash]
         closed_set = set()
         open_set = {start}
         open_heap = []
@@ -328,8 +378,8 @@ class Board(object):
             # current = sorted(open_set, key=lambda x: f_score[x])[0]
             if current == goal:
                 final_path = self.reconstruct_path(came_from, current)
-                if self.cache_distance:
-                    self.distance_cache[field_hash] = final_path
+                # if self.cache_distance:
+                #     self.distance_cache[field_hash] = final_path
                 return final_path
 
             open_set.remove(current)
@@ -352,8 +402,8 @@ class Board(object):
                 came_from[neighbour] = current
                 g_score[neighbour] = tentative_g_score
                 f_score[neighbour] = tentative_g_score + h
-        if self.cache_distance:
-            self.distance_cache[field_hash] = None
+        # if self.cache_distance:
+        #     self.distance_cache[field_hash] = None
         return None
 
     @staticmethod
@@ -412,17 +462,16 @@ class Board(object):
 
     @property
     def next_legal_player(self):
-        return self.legal_player if self.players_seperated else self.legal_player ^ 1
+        return self.legal_player if self._players_separated else self.legal_player ^ 1
 
     def __hash__(self):
         return self.hash
 
     def in_bounds(self, row, col):
-        return 0 <= row < self.height and 0 <= col < self.width
+        return 0 <= row < 16 and 0 <= col < 16
 
-    def is_legal(self, row, col, player_id=0):
-        return (self.in_bounds(row, col)) and (
-            self.cell[row * self.height + col] == EMPTY or self.cell[row * self.height + col] == 4 + player_id)
+    def is_legal(self, row, col):
+        return 0 <= row < 16 and 0 <= col < 16 and self.cell[row * 16 + col] == EMPTY
 
     def is_legal_with_players(self, row, col, player_id):
         return (self.in_bounds(row, col)) and (self.cell[row * self.height + col] == EMPTY or
@@ -449,23 +498,26 @@ class Board(object):
         return self.get_manhattan_distance(self.players[0].coord, self.players[1].coord)
 
     def get_player_true_distance(self):
-        self_hash = hash(str(self.cell))
-        if self_hash in self.distance_cache:
-            return self.distance_cache[self_hash]
-        path = self.a_star_player_to_enemy(0)
-        distance = float("inf") if path is None else len(path)
-        self.distance_cache[self_hash] = distance
+        p1_coord = self.players[0].coord
+        p2_coord = self.players[1].coord
+        dijkstra1 = self.dijkstra(p1_coord)
+        distance = 998
+        for adjacent in self.adjacents[p2_coord[0] * 16 + p2_coord[1]]:
+            distance = min(distance, dijkstra1[adjacent[0] * 16 + adjacent[1]])
+        distance += 1
+
         return distance
 
-    def is_players_separated(self):
-        return False
-        # if not self.players_seperated:
-        #     self.players_seperated = self.get_player_true_distance() == float("inf")
-        #     if self.players_seperated:
-        #         sys.stderr.write('Players seperated\n')
-        #         self.reset_caches()
-        #         self.block_unreachable(self.legal_player)
-        # return self.players_seperated
+    @property
+    def players_separated(self):
+        # return False
+        if not self._players_separated:
+            self._players_separated = self.get_player_true_distance() > 900
+            if self._players_separated:
+                sys.stderr.write('Players separated\n')
+                self.block_unreachable()
+                self.reset_caches()
+        return self._players_separated
 
     @staticmethod
     def get_coord_of_direction(coord, move):
@@ -517,10 +569,10 @@ class Board(object):
             col += 1
 
     def total_area(self, coord, player_id=0):
-        if self.cache_area:
-            field_hash = hash(str([coord] + self.cell))
-            if field_hash in self.area_cache[player_id]:
-                return self.area_cache[player_id][field_hash]
+        # if self.cache_area:
+        #     field_hash = hash(str([coord] + self.cell))
+        #     if field_hash in self.area_cache[player_id]:
+        #         return self.area_cache[player_id][field_hash]
 
         childs = self.adjacents[coord[0] * 16 + coord[1]]
         best_area = 0
@@ -536,16 +588,16 @@ class Board(object):
                     if adjacent not in area and adjacent not in queue:
                         queue.add(adjacent)
             best_area = max(best_area, len(area))
-        if self.cache_area:
-            self.area_cache[player_id][field_hash] = best_area
+        # if self.cache_area:
+        #     self.area_cache[player_id][field_hash] = best_area
         return best_area
 
     def total_area_fast(self, coord, player_id=0):
-        field_hash = None
-        if self.cache_fast_area:
-            field_hash = hash(str([coord] + self.cell))
-            if field_hash in self.fast_area_cache[player_id]:
-                return self.fast_area_cache[player_id][field_hash]
+        # field_hash = None
+        # if self.cache_fast_area:
+        #     field_hash = hash(str([coord] + self.cell))
+        #     if field_hash in self.fast_area_cache[player_id]:
+        #         return self.fast_area_cache[player_id][field_hash]
         area = set()
         queue = set()
         queue.add(coord)
@@ -556,6 +608,6 @@ class Board(object):
             for adjacent in current_adjacent:
                 if adjacent not in area and adjacent not in queue:
                     queue.add(adjacent)
-        if self.cache_fast_area:
-            self.fast_area_cache[player_id][field_hash] = area
+        # if self.cache_fast_area:
+        #     self.fast_area_cache[player_id][field_hash] = area
         return area

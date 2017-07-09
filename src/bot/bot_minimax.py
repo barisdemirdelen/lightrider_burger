@@ -3,15 +3,13 @@ import sys
 import time
 
 from bot.board import BLOCKED
+from bot.bot_seperated_minimax import BotSeparatedMinimax
 from bot.parameters import Parameters
 
 
 class BotMinimax(object):
     def __init__(self):
         self.game = None
-        self.separated = False
-        self.last_path = []
-        self.last_only_me = False
         self.depth_times = []
         self.total_nodes = 0
         self.start_time = 0
@@ -21,18 +19,20 @@ class BotMinimax(object):
         self.p1_next_coord_prediction = None
         self.p1_last_coord = None
         self.first_turn = True
+        self.separated_bot = None
 
     def setup(self, game):
         self.game = game
+        self.separated_bot = BotSeparatedMinimax(self.game, self.parameters)
 
     def give_reward(self, reward):
         pass
 
     def init_turn(self):
+        self.start_time = time.time()
         self.total_nodes = 0
         self.depth_times = []
         self.game.last_order = None
-        self.start_time = time.time()
         self.game.rounds_left = 0.5 * self.game.field.height * self.game.field.width - self.game.field.round
         self.game.field.score = None
         self.game.field.legal_player = 0
@@ -40,21 +40,23 @@ class BotMinimax(object):
         self.game.field._legal_moves = None
         self.cached = 0
         self.cut = 0
-        self.game.field = self.game.field.find_child_field()
-
-        p1_new_coord = self.game.field.players[1].coord
-        if self.p1_next_coord_prediction and self.p1_last_coord:
-            p1_predicted_coord = self.game.field.get_coord_of_direction(self.p1_last_coord,
-                                                                        self.p1_next_coord_prediction)
-            if p1_new_coord != p1_predicted_coord:
-                sys.stderr.write('I thought he would go %s but i was wrong\n' % self.p1_next_coord_prediction)
-
-        self.p1_last_coord = p1_new_coord
-        self.p1_next_coord_prediction = None
 
         if self.first_turn:
             self.game.field.cache_adjacent_initial()
         self.first_turn = False
+        if self.game.field.players_separated:
+            self.game.field.block_unreachable()
+        self.game.field = self.game.field.find_child_field()
+        if not self.game.field.players_separated:
+            p1_new_coord = self.game.field.players[1].coord
+            if self.p1_next_coord_prediction and self.p1_last_coord:
+                p1_predicted_coord = self.game.field.get_coord_of_direction(self.p1_last_coord,
+                                                                            self.p1_next_coord_prediction)
+                if p1_new_coord != p1_predicted_coord:
+                    sys.stderr.write('I thought he would go %s but i was wrong\n' % self.p1_next_coord_prediction)
+
+            self.p1_last_coord = p1_new_coord
+            self.p1_next_coord_prediction = None
 
     def do_turn(self):
         self.init_turn()
@@ -65,12 +67,19 @@ class BotMinimax(object):
         elif len(legal) == 1:
             self.game.issue_order(legal[0][1])
         else:
-            rounds_left_0 = self.game.field.total_area(self.game.field.players[0].coord, player_id=0) // 2
-            self.game.rounds_left = rounds_left_0 + 1
-            search_path = self.game.field.best_moves.copy()
-            score, best_path, depth = self.iterative_deepening_alpha_beta(search_path=search_path)
-            self.last_only_me = self.separated
-            self.last_path = best_path
+            if self.game.field.players_separated:
+                rounds_left_0 = self.game.field.total_area(self.game.field.players[0].coord, player_id=0)
+                rounds_left_1 = self.game.field.total_area(self.game.field.players[0].coord, player_id=1)
+                self.game.rounds_left = min(rounds_left_0, rounds_left_1) + 1
+                score, best_path, depth, total_nodes, cached = self.separated_bot.do_turn(self.depth_times,
+                                                                                          self.start_time)
+                self.total_nodes = total_nodes
+                self.cached = cached
+            else:
+                rounds_left_0 = self.game.field.total_area(self.game.field.players[0].coord, player_id=0) // 2
+                self.game.rounds_left = rounds_left_0 + 1
+                search_path = self.game.field.best_moves.copy()
+                score, best_path, depth = self.iterative_deepening_alpha_beta(search_path=search_path)
 
             elapsed = time.time() - self.start_time
 
@@ -142,7 +151,7 @@ class BotMinimax(object):
 
         moves = field.legal_moves
         if depth <= 0 or not moves:
-            score = self.evaluate(field, player_id)
+            score = self.evaluate(field)
             alpha_history = ['pass'] if not moves else []
             if alpha_history is None:
                 sys.stderr.write('Why is this None\n')
@@ -161,8 +170,7 @@ class BotMinimax(object):
             priority_move = search_path.pop(0)
 
         child_fields, directions = field.get_child_fields()
-        child_fields, directions = self.sort_moves(child_fields, directions, priority=priority_move,
-                                                   player_id=player_id)
+        child_fields, directions = self.sort_moves(child_fields, directions, priority=priority_move)
 
         best_score, alpha_history = self.aspiration_search_moves(child_fields, directions, depth, player_id, alpha,
                                                                  beta, search_path)
@@ -192,9 +200,9 @@ class BotMinimax(object):
                         return best_score, alpha_history
                     alpha = best_score
             else:
-                # if i > 1 and child_field.score and -child_field.score + 11 < best_score:
-                #     self.cut += 1
-                #     continue
+                if child_field.score and -child_field.score + 65 < best_score:
+                    self.cut += 1
+                    continue
                 reduction_factor = self.parameters.reduction_factor
                 if player_id == 0:
                     next_depth = 1 if depth - reduction_factor < 1 else depth - reduction_factor
@@ -223,39 +231,35 @@ class BotMinimax(object):
                     best_score = score
         return best_score, alpha_history
 
-    def sort_moves(self, fields, directions, priority, player_id):
+    def sort_moves(self, fields, directions, priority):
         if not fields:
             return fields, directions
-        child_list = []
+        scores = [0] * len(fields)
+        child_counts = [0] * len(fields)
         distances = [0] * len(fields)
-        # for field in fields:
-        #     if field.score is None:
-        #         break
-        # else:
         for i, field in enumerate(fields):
-            distances[i] = -field.score if field.score else 0
+            if field.legal_player == 0:
+                scores[i] = self.evaluate(field)
+            else:
+                scores[i] = field.score if field.score else 999
+            child_counts[i] = len(field.get_child_fields()[0])
+            distances[i] = field.get_player_euclidian_distance_square()
 
         if priority is None:
-            if distances:
-                child_list = sorted(zip(fields, directions, distances), key=lambda x: (x[2]))
-            else:
-                return fields, directions
+            child_list = sorted(zip(fields, directions, scores, child_counts, distances),
+                                key=lambda x: (x[2], x[3], x[4]))
         else:
-            if distances:
-                child_list = sorted(zip(fields, directions, distances),
-                                    key=lambda x: (0 if x[1] == priority else 1, x[2]))
-            else:
-                child_list = sorted(zip(fields, directions, distances),
-                                    key=lambda x: (0 if x[1] == priority else 1))
-        sorted_fields, sorted_directions, sorted_distances = zip(*child_list)
+            child_list = sorted(zip(fields, directions, scores, child_counts, distances),
+                                key=lambda x: (0 if x[1] == priority else 1, x[2], x[3], x[4]))
+        sorted_fields, sorted_directions, _, _, _ = zip(*child_list)
 
         return sorted_fields, sorted_directions
 
-    def evaluate(self, field, player_id, cache=True):
+    def evaluate(self, field, cache=True):
         if field.score:
             self.cached += 1
             return field.score
-
+        player_id = field.legal_player
         score = -999
         depth = 0
         if field.legal_moves:
@@ -276,7 +280,6 @@ class BotMinimax(object):
 
         if cache:
             field.score = score
-            field.search_depth = 0
             field.search_depth = depth
 
         return score
@@ -315,7 +318,7 @@ class BotMinimax(object):
         for field in child_fields:
             score = field.score
             if not score:
-                score = self.evaluate(field, 1 - player_id, cache=False)
+                score = self.evaluate(field)
             if score > best_score:
                 best_field = field
                 best_score = score
