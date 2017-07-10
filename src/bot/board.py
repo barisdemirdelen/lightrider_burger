@@ -21,6 +21,9 @@ board_size = 16
 
 
 class Board(object):
+    __slots__ = ['width', 'height', 'cell', 'players', 'round', 'initialized', '_players_separated', 'score',
+                 'search_depth', 'best_moves', 'separated_score', 'separated_search_depth', 'separated_best_moves',
+                 'hash', 'children', '_legal_moves', 'legal_player', 'adjacents']
     hashtable = None
 
     def __init__(self):

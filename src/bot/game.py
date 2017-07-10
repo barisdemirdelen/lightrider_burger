@@ -11,6 +11,9 @@ from . import player
 
 
 class Game(object):
+    __slots__ = ['initial_timebank', 'time_per_move', 'player_names', 'my_bot', '_my_botid', '_other_botid', 'field',
+                 'last_order', 'last_order_coord', 'last_update', 'last_timebank', 'rounds_left', 'silent', 'timebank']
+
     def __init__(self):
         self.initial_timebank = 10000
         self.time_per_move = 200
@@ -18,6 +21,7 @@ class Game(object):
         self.my_bot = 'not set'
         self._my_botid = -1
         self._other_botid = -1
+        self.timebank = None
 
         self.field = Board()
         self.last_order = None
@@ -43,6 +47,7 @@ class Game(object):
         game.rounds_left = self.rounds_left
         game.silent = self.silent
         game.last_order_coord = self.last_order_coord
+        game.timebank = self.timebank
         return game
 
     def my_player(self):
@@ -79,7 +84,7 @@ class Game(object):
                         self.my_bot = tokens[2]
                     if key1 == 'your_botid':
                         self._my_botid = int(tokens[2])
-                        self.other_botid = 1 - self._my_botid
+                        self._other_botid = 1 - self._my_botid
                     if key1 == 'field_width':
                         self.field.width = int(tokens[2])
                     if key1 == 'field_height':

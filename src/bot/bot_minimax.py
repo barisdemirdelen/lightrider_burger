@@ -8,6 +8,9 @@ from bot.parameters import Parameters
 
 
 class BotMinimax(object):
+    __slots__ = ['game', 'parameters', 'depth_times', 'start_time', 'total_nodes', 'cached', 'cut',
+                 'p1_next_coord_prediction', 'p1_last_coord', 'first_turn', 'separated_bot']
+
     def __init__(self):
         self.game = None
         self.depth_times = []

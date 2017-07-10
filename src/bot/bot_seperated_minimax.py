@@ -7,6 +7,8 @@ from bot.parameters import Parameters
 
 
 class BotSeparatedMinimax(object):
+    __slots__ = ['game', 'parameters', 'depth_times', 'start_time', 'total_nodes', 'cached']
+
     def __init__(self, game, parameters):
         self.game = game
         self.parameters = parameters
